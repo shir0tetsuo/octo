@@ -22,8 +22,11 @@ logger = logging.getLogger("db")
 def unwrap_kv_to_create_schema(
         kv:dict, 
         table_name:str, 
-        index:dict={
-            "'index'" : 'INTEGER PRIMARY KEY',  # Master Entity Key, queue is INTEGER NOT NULL
+        # Corrected: index dictionary now only defines the columns, 
+        # the PRIMARY KEY constraint is handled explicitly below for simplicity.
+        index_cols:dict={
+            "'index'" : 'INTEGER NOT NULL',  
+            "'iter'" : 'INTEGER NOT NULL',
         }, 
         is_queue:bool=False
     ):
@@ -32,21 +35,37 @@ def unwrap_kv_to_create_schema(
     init_lines = [f'CREATE TABLE IF NOT EXISTS {table_name} (']
 
     if is_queue:
-        init_lines.append('queue_id INTEGER PRIMARY KEY AUTOINCREMENT')
+        # For the queue, the primary key is queue_id
+        init_lines.append(f'{schema_indent}queue_id INTEGER PRIMARY KEY AUTOINCREMENT,')
+        # Add index columns next
+        init_lines.extend([f'{schema_indent}{k} {v},' for k,v in index_cols.items()])
+    else:
+        # For the main table, the composite primary key is index and iter
+        init_lines.extend([f'{schema_indent}{k} {v},' for k,v in index_cols.items()])
 
-    init_lines.append(f'{schema_indent}{k} {v}' for k,v in index.items())
 
-    sqlcommand = (
-        init_lines + [f'{schema_indent}{k} {v}' for k,v in kv.items()] + [')']
-    )
+    # Add the remaining schema fields
+    data_lines = [f'{schema_indent}{k} {v},' for k,v in kv.items()]
+    init_lines.extend(data_lines)
 
-    return '\n'.join(sqlcommand)
+    # Add the PRIMARY KEY constraint for the main table (not the queue)
+    if not is_queue:
+        # Pop the comma off the last data line
+        init_lines[-1] = init_lines[-1].rstrip(',')
+        init_lines.append(f'{schema_indent}PRIMARY KEY (\'index\', \'iter\')')
+    else:
+        # Pop the comma off the last data line
+        init_lines[-1] = init_lines[-1].rstrip(',')
+
+
+    init_lines.append(')')
+
+    return '\n'.join(init_lines)
 
 ENTITYSCHEMA = {
-    # "'index'" : (Updated Dynamically; INTEGER PRIMARY KEY)
-    'uuid'       : 'TEXT UNIQUE',          # Master UUID
+    'uuid'       : 'TEXT UNIQUE',          # Master UUID. NOTE: 'uuid' is unique across all versions/iters!
     'state'      : 'INTEGER',              # State is an integer for extra control
-    'iter'       : 'INTEGER',              # Iter is the iteration number of the location for history traceback
+    # 'iter' is now part of the primary key in EntityStore.init
     'name'       : 'TEXT',                 # Generic Name Field (sanitized user input)
     'description': 'TEXT',                 # Generic Description Field (sanitized user input)
     
@@ -82,8 +101,8 @@ class BaseStore:
         self._running = False
         self._flush_task: asyncio.Task | None = None
 
-        # Read-throough LRU cache
-        self._cache = OrderedDict[str, Any] = OrderedDict()
+        # Read-throough LRU cache. Key: "index:iter"
+        self._cache: OrderedDict[str, Any] = OrderedDict()
         
         # Metrics
         self.started      = time.time()
@@ -93,7 +112,16 @@ class BaseStore:
         self.cache_misses = 0
         self.queue_depth  = 0
 
-        pass
+    @property
+    def metrics(self):
+        return {
+            'started': self.started,
+            'flushes': self.flushes,
+            'writes': self.writes,
+            'cache_hits': self.cache_hits,
+            'cache_misses': self.cache_misses,
+            'queue_depth': self.queue_depth
+        }
 
 class EntityStore(BaseStore):
     def __init__(
@@ -110,28 +138,32 @@ class EntityStore(BaseStore):
         
         logger.info(f"Initializing DB at {str(self.path.resolve())} with pool size {self.pool_size}")
 
+        index_cols = {"'index'": 'INTEGER NOT NULL', "'iter'": 'INTEGER NOT NULL'}
+
         for _ in range(self.pool_size):
             conn = sqlite3.connect(
                 self.path,
-                check_same_thread=False,  # Required for anyio thread pool usage
-                isolation_level=None      # Autocommit mode (we manage tx manually)
+                check_same_thread=False,
+                isolation_level=None
             )
             # Performance Optimizations
             conn.execute("PRAGMA journal_mode=WAL;")
             conn.execute("PRAGMA synchronous=NORMAL;")
             conn.execute("PRAGMA temp_store=MEMORY;")
-            conn.execute("PRAGMA mmap_size=30000000000;") # Memory map up to ~30GB
+            conn.execute("PRAGMA mmap_size=30000000000;")
             
-            # main table
-            conn.execute(unwrap_kv_to_create_schema(ENTITYSCHEMA, 'entities'))
+            # main table - CORRECTED to use composite primary key
+            conn.execute(unwrap_kv_to_create_schema(ENTITYSCHEMA, 'entities', index_cols))
             
-            # queue table
-            conn.execute(unwrap_kv_to_create_schema(ENTITYSCHEMA, 'write_queue', {"'index'": 'INTEGER NOT NULL'}))
+            # queue table - CORRECTED to include 'iter'
+            conn.execute(unwrap_kv_to_create_schema(ENTITYSCHEMA, 'write_queue', index_cols, is_queue=True))
             
             # Fast lookup by UUID
             conn.execute("CREATE INDEX IF NOT EXISTS idx_uuid ON entities(uuid)")
             # Fast 3D range queries
             conn.execute("CREATE INDEX IF NOT EXISTS idx_pos ON entities(positionX, positionY, positionZ)")
+            # Index for fast retrieval of latest versions
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_latest ON entities('index', 'iter' DESC)")
             
             await self._pool.put(conn)
         
@@ -181,61 +213,64 @@ class EntityStore(BaseStore):
 
     def _row_to_dict(self, row: tuple) -> dict:
         """Helper to map tuple -> dict and parse JSON."""
-        # row structure matches 'entities' table columns order
-        # 0: index, 1: uuid, 2: state, 3: name, 4: desc, 5: X, 6: Y, 7: Z, 8: aes, 9: owner, 10: minted, 11: ts
+        # Row structure order in DB: index, iter, uuid, state, name, description, 
+        # positionX, positionY, positionZ, aesthetics, ownership, minted, timestamp (13 columns)
         try:
-            aes = json.loads(row[8]) if row[8] else {}
+            # Aesthetics is at index 9
+            aes = json.loads(row[9]) if row[9] else {}
         except:
-            aes = row[8] # Fallback
+            aes = row[9] # Fallback
 
         return {
             "index": row[0],
-            "uuid": row[1],
-            "state": row[2],
-            "name": row[3],
-            "description": row[4],
-            "positionX": row[5],
-            "positionY": row[6],
-            "positionZ": row[7],
+            "iter": row[1],
+            "uuid": row[2],
+            "state": row[3],
+            "name": row[4],
+            "description": row[5],
+            "positionX": row[6],
+            "positionY": row[7],
+            "positionZ": row[8],
             "aesthetics": aes,
-            "ownership": row[9],
-            "minted": bool(row[10]),
-            "timestamp": row[11]
+            "ownership": row[10],
+            "minted": bool(row[11]),
+            "timestamp": row[12]
         }
 
     # CRUD Operations ───────────────────────────
     async def set(self, data: dict):
         '''
-        Upsert an entity.
-        Data must contain 'index' as the Primary Key.
+        Upsert a specific version (index + iter).
         '''
-        # Update the Cache
+        # Update the Cache. Key: "index:iter"
         idx = data['index']
-        if idx in self._cache:
-            self._cache.move_to_end(idx)
-        self._cache[idx] = data
+        iteration = data['iter']
+        cache_key = f"{idx}:{iteration}"
+
+        if cache_key in self._cache:
+            self._cache.move_to_end(cache_key)
+        self._cache[cache_key] = data
         if len(self._cache) > LRU_CACHE_SIZE:
             self._cache.popitem(last=False)
         
         # Serialize JSON fields to DB
-        # Shallow copy to safely stringify 'aesthetics' without breaking the cached dict
         db_row = data.copy()
         if isinstance(db_row.get('aesthetics'), (dict, list)):
             db_row['aesthetics'] = json.dumps(db_row['aesthetics'])
 
-        # Enqueue
+        # Enqueue - CORRECTED to include 'iter' column and placeholder
         async with self._conn() as conn:
             await anyio.to_thread.run_sync(
                 conn.execute,
                 """
                 INSERT INTO write_queue (
-                    'index', uuid, state, name, description,
+                    'index', 'iter', uuid, state, name, description,
                     positionX, positionY, positionZ,
                     aesthetics, ownership, minted, timestamp
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    db_row['index'], db_row['uuid'], db_row['state'], db_row['name'], db_row['description'],
+                    db_row['index'], db_row['iter'], db_row['uuid'], db_row['state'], db_row['name'], db_row['description'],
                     db_row['positionX'], db_row['positionY'], db_row['positionZ'],
                     db_row['aesthetics'], db_row['ownership'], int(db_row['minted']), db_row['timestamp']
                 )
@@ -246,39 +281,53 @@ class EntityStore(BaseStore):
         if self.queue_depth >= MAX_QUEUE_ROWS:
             await self._flush()
 
-    async def get(self, index: int) -> Optional[dict]:
+    async def get(self, index: int, iteration: Optional[int] = None) -> Optional[dict]:
+        '''
+        If iteration is `None`: Returns the LATEST (highest iter) version.\n
+        If iteration is set: Returns that specific version.
+        '''
+        cache_key = f"{index}:{iteration}" if iteration is not None else None
 
-        # 1. Cache
-        if index in self._cache:
-            self._cache.move_to_end(index)
+        # 1. Cache Hit
+        if cache_key and cache_key in self._cache:
+            self._cache.move_to_end(cache_key)
             self.cache_hits += 1
-            return self._cache[index]
+            return self._cache[cache_key]
         
         self.cache_misses += 1
 
         # DB (Check Queue then Table)
         async with self._conn() as conn:
             def _fetch():
+                query_suffix = ""
+                params = []
+                
+                if iteration is not None:
+                    query_suffix = "WHERE 'index'=? AND 'iter'=?"
+                    params = (index, iteration)
+                else:
+                    # Get the LATEST version for this index
+                    query_suffix = "WHERE 'index'=? ORDER BY 'iter' DESC LIMIT 1"
+                    params = (index,)
+
                 # Check Queue First (newest version)
-                cur = conn.execute(
-                    "SELECT * FROM write_queue WHERE 'index'=? ORDER BY queue_id DESC LIMIT 1",
-                    (index,)
-                )
+                cur = conn.execute(f"SELECT * FROM write_queue {query_suffix}", params)
                 row = cur.fetchone()
                 if row:
-                    # queue_id is col 0, we slice it off to match schema or map manually. 
-                    # Queue table has 'queue_id' at index 0, so real data starts at 1
+                    # Queue table has 'queue_id' at index 0, real data starts at 1
                     return self._row_to_dict(row[1:])
                 
                 # Check Main Table
-                cur = conn.execute("SELECT * FROM entities WHERE 'index'=?", (index,))
+                cur = conn.execute(f"SELECT * FROM entities {query_suffix}", params)
                 row = cur.fetchone()
                 return self._row_to_dict(row) if row else None
             
             result = await anyio.to_thread.run_sync(_fetch)
 
         if result:
-            self._cache[index] = result
+            # Cache the specific version found
+            found_key = f"{result['index']}:{result['iter']}"
+            self._cache[found_key] = result
         return result
 
     # Background Flush ──────────────────────────
@@ -307,17 +356,17 @@ class EntityStore(BaseStore):
 
                     conn.execute("BEGIN IMMEDIATE")
                     try:
-                        # Insert/Replace into main table
+                        # Insert/Replace into main table - CORRECTED to include 'iter'
                         # Note: rows in write_queue have queue_id at index 0. 
-                        # We pass row[1:] to match entity table columns.
+                        # We pass row[1:] (13 elements: index, iter, uuid, ...) to match entity table columns.
                         data_tuples = [r[1:] for r in rows]
                         
                         conn.executemany("""
                             INSERT OR REPLACE INTO entities (
-                                'index', uuid, state, name, description, 
+                                'index', 'iter', uuid, state, name, description, 
                                 positionX, positionY, positionZ, 
                                 aesthetics, ownership, minted, timestamp
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, data_tuples)
 
                         # Clean queue

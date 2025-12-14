@@ -55,12 +55,37 @@ class HelloResponse(BaseModel):
     days_old : int
     ID : str
 
+class EntityIn(BaseModel):
+    index: int = Field(..., description="Location ID")
+    iter: int = Field(..., description="Version Iteration Number")
+    uuid: str
+    state: int
+    name: str
+    description: str = ""
+    positionX: int
+    positionY: int
+    positionZ: int
+    aesthetics: Dict[str, Any] | str = Field(default_factory=dict, description="JSON object or string")
+    ownership: str
+    minted: bool
+    timestamp: int
+
+class RangeQuery(BaseModel):
+    min_x: int
+    max_x: int
+    min_y: int
+    max_y: int
+    min_z: int
+    max_z: int
+    limit: int = 1000
+
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(server: FastAPI):
     global ZONES
     for store in ZONES.values():
         await store.init()
-        yield
+    yield
+    for store in ZONES.values():
         await store.close()
 
 server = FastAPI(title='Database Server', version=versioning.distribution_version, lifespan=lifespan)
@@ -77,6 +102,7 @@ def ThrowHTTPError(message, status_code=status.HTTP_401_UNAUTHORIZED):
     e = HTTPException(status_code=status_code, detail=message)
     Tee.exception(e, msg=message)
     raise e
+
 ThrowIf = lambda statement, error_message='', status_code=status.HTTP_401_UNAUTHORIZED: (ThrowHTTPError(error_message, status_code) if statement else None)
 '''
 :param statement: Conditional boolean logic statement yielding `True` or `False`, if `True`, an error will be thrown, if `False`, `None` will be returned.
@@ -99,6 +125,55 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
     
     return decrypted
 
+# Entity Routes ───────────────────────────
+
+@server.post("/set/{zone}", dependencies=[Depends(Authorization)])
+async def set_entity(zone: int, entity: EntityIn):
+    """Upsert an entity version into a specific zone."""
+    global ZONES
+    ThrowIf(zone not in ZONES, f"Invalid zone ID: {zone}", status.HTTP_400_BAD_REQUEST)
+    
+    store = ZONES[zone]
+    await store.set(entity.model_dump())
+    return {"status": "queued", "id": f"{entity.index}v{entity.iter}"}
+
+# NOTE : Might be a good idea to call the "whole" group with all iters, not currently implemented
+
+@server.get("/get/{zone}/{index}", dependencies=[Depends(Authorization)])
+async def get_latest_entity(zone: int, index: int):
+    """Get the highest iteration (latest version) for a given index in a zone."""
+    global ZONES
+    ThrowIf(zone not in ZONES, f"Invalid zone ID: {zone}", status.HTTP_400_BAD_REQUEST)
+
+    store = ZONES[zone]
+    ent = await store.get(index)
+    if not ent:
+        raise HTTPException(status_code=404, detail="Entity not found")
+    return ent
+
+@server.get("/get/{zone}/{index}/{iter}", dependencies=[Depends(Authorization)])
+async def get_specific_version(zone: int, index: int, iter: int):
+    """Get a specific iteration of an entity in a zone."""
+    global ZONES
+    ThrowIf(zone not in ZONES, f"Invalid zone ID: {zone}", status.HTTP_400_BAD_REQUEST)
+
+    store = ZONES[zone]
+    ent = await store.get(index, iter)
+    if not ent:
+        raise HTTPException(status_code=404, detail=f"Entity version {index}v{iter} not found")
+    return ent
+
+@server.post("/range/{zone}", dependencies=[Depends(Authorization)])
+async def query_range(zone: int, query: RangeQuery):
+    """Query for entities within a 3D bounding box in a specific zone."""
+    global ZONES
+    ThrowIf(zone not in ZONES, f"Invalid zone ID: {zone}", status.HTTP_400_BAD_REQUEST)
+
+    store = ZONES[zone]
+    return await store.range_query(query.model_dump())
+
+# Health and Auth Routes ───────────────────────────
+
 @server.get("/hello", response_model=HelloResponse)
 def server_hello(decrypted_token: security.DecryptedToken = Depends(Authorization)):
     return HelloResponse(
@@ -106,6 +181,21 @@ def server_hello(decrypted_token: security.DecryptedToken = Depends(Authorizatio
         days_old=decrypted_token.days_old, 
         ID=decrypted_token.ID
     )
+
+@server.get("/health", dependencies=[Depends(Authorization)])
+async def health():
+    """Get metrics for all zones."""
+    global ZONES
+    return {i : store.metrics for i, store in ZONES.items()}
+
+@server.get("/health/{zone}", dependencies=[Depends(Authorization)])
+async def zone_health(zone: int):
+    """Get metrics for a specific zone."""
+    global ZONES
+    ThrowIf(zone not in ZONES, f"Invalid zone ID: {zone}", status.HTTP_400_BAD_REQUEST)
+    
+    store = ZONES[zone]
+    return store.metrics
 
 if __name__ == "__main__":
     import uvicorn
