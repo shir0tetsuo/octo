@@ -22,8 +22,6 @@ logger = logging.getLogger("db")
 def unwrap_kv_to_create_schema(
         kv:dict, 
         table_name:str, 
-        # Corrected: index dictionary now only defines the columns, 
-        # the PRIMARY KEY constraint is handled explicitly below for simplicity.
         index_cols:dict={
             "'index'" : 'INTEGER NOT NULL',  
             "'iter'" : 'INTEGER NOT NULL',
@@ -33,30 +31,29 @@ def unwrap_kv_to_create_schema(
     schema_indent = ' '*8
     
     init_lines = [f'CREATE TABLE IF NOT EXISTS {table_name} (']
-
+    
+    # 1. Handle queue_id for the write buffer
     if is_queue:
-        # For the queue, the primary key is queue_id
         init_lines.append(f'{schema_indent}queue_id INTEGER PRIMARY KEY AUTOINCREMENT,')
-        # Add index columns next
-        init_lines.extend([f'{schema_indent}{k} {v},' for k,v in index_cols.items()])
-    else:
-        # For the main table, the composite primary key is index and iter
-        init_lines.extend([f'{schema_indent}{k} {v},' for k,v in index_cols.items()])
 
+    # 2. Add Index Columns (e.g., 'index', 'iter')
+    # All lines here get a trailing comma
+    init_lines.extend([f'{schema_indent}{k} {v},' for k,v in index_cols.items()])
 
-    # Add the remaining schema fields
+    # 3. Add the remaining schema fields (e.g., uuid, state, aesthetics)
     data_lines = [f'{schema_indent}{k} {v},' for k,v in kv.items()]
     init_lines.extend(data_lines)
 
-    # Add the PRIMARY KEY constraint for the main table (not the queue)
+    # 4. Handle the PRIMARY KEY constraint (Main table only)
     if not is_queue:
-        # Pop the comma off the last data line
-        init_lines[-1] = init_lines[-1].rstrip(',')
-        init_lines.append(f'{schema_indent}PRIMARY KEY (\'index\', \'iter\')')
-    else:
-        # Pop the comma off the last data line
-        init_lines[-1] = init_lines[-1].rstrip(',')
+        # A. Remove the comma from the *last* data line to make it the final column definition
+        init_lines[-1] = init_lines[-1].rstrip(',') 
 
+        # B. Append the PRIMARY KEY definition, ensuring it is preceded by a comma (required by SQLite)
+        init_lines.append(f'{schema_indent}, PRIMARY KEY (\'index\', \'iter\')')
+    else:
+        # For the queue table, just clean the trailing comma off the final column
+        init_lines[-1] = init_lines[-1].rstrip(',')
 
     init_lines.append(')')
 
@@ -80,7 +77,6 @@ ENTITYSCHEMA = {
 }
 
 USERSCHEMA = {
-    # "'index'" : (Updated Dynamically; INTEGER PRIMARY KEY)
     'uuid'       : 'TEXT UNIQUE',
     'emoji'      : 'TEXT',
 }
@@ -129,7 +125,7 @@ class EntityStore(BaseStore):
             path: Path,
             pool_size: int = POOL_SIZE
         ):
-        super().__init__(path, pool_size)
+        super().__init__(path, pool_size) # __init>
 
     async def init(self):
         global ENTITYSCHEMA
@@ -152,10 +148,10 @@ class EntityStore(BaseStore):
             conn.execute("PRAGMA temp_store=MEMORY;")
             conn.execute("PRAGMA mmap_size=30000000000;")
             
-            # main table - CORRECTED to use composite primary key
+            # main table - CORRECTED SQL generation
             conn.execute(unwrap_kv_to_create_schema(ENTITYSCHEMA, 'entities', index_cols))
             
-            # queue table - CORRECTED to include 'iter'
+            # queue table - CORRECTED SQL generation
             conn.execute(unwrap_kv_to_create_schema(ENTITYSCHEMA, 'write_queue', index_cols, is_queue=True))
             
             # Fast lookup by UUID
@@ -283,7 +279,7 @@ class EntityStore(BaseStore):
 
     async def get(self, index: int, iteration: Optional[int] = None) -> Optional[dict]:
         '''
-        If iteration is `None`: Returns the LATEST (highest iter) version.\n
+        If iteration is None: Returns the LATEST (highest iter) version.
         If iteration is set: Returns that specific version.
         '''
         cache_key = f"{index}:{iteration}" if iteration is not None else None

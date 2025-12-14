@@ -44,9 +44,13 @@ NewID = lambda: str(uuid.uuid4())
 # NOTE : Each "zone" will have a default aesthetic map with deterministic randomness.
 ZONES = {
     i : databases.EntityStore(
-        ExtendToParentResource('engine', f'zone{i}.sqlite'), databases.POOL_SIZE) 
+        ExtendToParentResource('db', f'zone{i}.sqlite'), databases.POOL_SIZE) 
         for i in list(range(0, 5))
 }
+
+db_path = ExtendToParentResource('db')
+if not db_path.exists():
+    db_path.mkdir(parents=True, exist_ok=True)
 
 key_storage_file = ExtendToParentResource('engine', 'key.json')  # Where the private decryption key is stored
 
