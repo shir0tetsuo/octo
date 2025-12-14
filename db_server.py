@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 # internal
-from engine import jsonsafe, verbose, versioning, security, validation
+from engine import jsonsafe, verbose, versioning, security, validation, databases
 
 import sqlite3
 import asyncio
@@ -41,6 +41,13 @@ Tee = verbose.T()
 ExtendToParentResource = lambda *args: Path(os.path.join(Path(__file__).parent.resolve(), *args))
 NewID = lambda: str(uuid.uuid4())
 
+# NOTE : Each "zone" will have a default aesthetic map with deterministic randomness.
+ZONES = {
+    i : databases.EntityStore(
+        ExtendToParentResource('engine', f'zone{i}.sqlite'), databases.POOL_SIZE) 
+        for i in list(range(0, 5))
+}
+
 key_storage_file = ExtendToParentResource('engine', 'key.json')  # Where the private decryption key is stored
 
 class HelloResponse(BaseModel):
@@ -48,7 +55,15 @@ class HelloResponse(BaseModel):
     days_old : int
     ID : str
 
-server = FastAPI(title='Database Server', version=versioning.distribution_version)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global ZONES
+    for store in ZONES.values():
+        await store.init()
+        yield
+        await store.close()
+
+server = FastAPI(title='Database Server', version=versioning.distribution_version, lifespan=lifespan)
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True, scheme_name="APIKeyAuth")
 server.add_middleware(
     CORSMiddleware,
