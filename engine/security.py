@@ -15,9 +15,10 @@ class DecryptedToken(BaseModel):
 private_key = None
 
 token_separator = '**'
+NoneID = "00000000-0000-0000-0000-000000000001"
+
 NewToken = lambda *args: f'{token_separator}'.join(args)
 NewCipherBlob = lambda token, key, nonce: nonce + AESGCM(key).encrypt(nonce, token.encode(), None)
-NoneID = "00000000-0000-0000-0000-000000000001"
 
 def store_private_key(key_storage_file:Path, lock=threading.RLock(), private_key:bytes=os.urandom(32)):
     try:
@@ -51,8 +52,9 @@ def create_api_key(*token_data, key_storage_file:Path, ID:Optional[str]=str(uuid
     return base64.urlsafe_b64encode( NewCipherBlob( NewToken( *token_data, ID, ts ), private_key, os.urandom(12) ) )
 
 def decrypt_api_key(b64_cipher, key_storage_file:Path, lock=threading.RLock()):
-    global token_separator
+    global token_separator, NoneID
     private_key = read_private_key(key_storage_file, lock)
+    token = []
     try:
         blob = base64.urlsafe_b64decode(b64_cipher)
         token = AESGCM(private_key).decrypt(blob[:12], blob[12:], None).decode().split(token_separator)

@@ -41,8 +41,12 @@ Tee = verbose.T()
 ExtendToParentResource = lambda *args: Path(os.path.join(Path(__file__).parent.resolve(), *args))
 NewID = lambda: str(uuid.uuid4())
 
-class StatusResponse(BaseModel):
-    token : list
+key_storage_file = ExtendToParentResource('engine', 'key.json')  # Where the private decryption key is stored
+
+class HelloResponse(BaseModel):
+    data : list
+    days_old : int
+    ID : str
 
 server = FastAPI(title='Database Server', version=versioning.distribution_version)
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True, scheme_name="APIKeyAuth")
@@ -68,9 +72,8 @@ ThrowIf = lambda statement, error_message='', status_code=status.HTTP_401_UNAUTH
 '''
 
 def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
-
-    # TODO : Add key storage file
-    decrypted:security.DecryptedToken = security.decrypt_api_key(api_key)
+    global key_storage_file
+    decrypted:security.DecryptedToken = security.decrypt_api_key(api_key, key_storage_file)
     
     if any([
         decrypted.decryption_success == False,
@@ -81,12 +84,14 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
     
     return decrypted
 
-
-@server.get("/hello", response_model=StatusResponse)
+@server.get("/hello", response_model=HelloResponse)
 def server_hello(decrypted_token: security.DecryptedToken = Depends(Authorization)):
-    return StatusResponse(jsonsafe.JSONSafe(decrypted_token))
+    return HelloResponse(
+        data=jsonsafe.JSONSafe(decrypted_token.data), 
+        days_old=decrypted_token.days_old, 
+        ID=decrypted_token.ID
+    )
 
-# For Testing
 if __name__ == "__main__":
     import uvicorn
     # Use loop="asyncio" to prevent uvloop conflicts with generic thread pools if needed

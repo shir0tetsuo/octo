@@ -208,3 +208,6 @@ __marimo__/
 
 # ignore developer ref files
 dev/
+
+# The private decryption key file
+key.json
