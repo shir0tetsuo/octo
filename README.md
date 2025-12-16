@@ -1,6 +1,45 @@
 # octo
 
+**Project uses:** Python, Github Pages, jquery, HTML, CSS, Caddy (HTTPS Proxy)
 
+to serve dynamically built web pages with a backend API server (for modularity so we can put the database itself on another machine) and a frontend API server (so we can communicate the data back to Github and handle "user authentication")
+
+No API response? People will still know we exist, because the page is hosted on **Github Pages.**
+
+Tired of fumbling with CSS for documentation? **Github Pages.**
+
+Too much read/write overhead of the same HTML/CSS/JS files? **Github Pages!**
+
+### Why would we want to separate the database API from the frontend API?
+
+Primarily because if the database is just a database, we can serve it over our network using a Raspberry Pi.
+
+
+### Github Page &rarr; HTTPS API Frontend &rarr; Database Backend
+Leverages dynamic page building with static Github Pages and jquery.
+
+- Github Pages handles static (and "dynamic" jquery pages) distribution.
+- Caddy serves a proxy with HTTPS Encryption magically.
+- The frontend API handles "user authentication".
+- The backend passes data to the frontend API then back to the end-user.
+
+Things we can assume right now:
+- Headers set on the page will be passed to the frontend server
+    - If not, we can funnel it through jquery anyway with extra steps.
+- It won't lag too badly, I hope.
+- Github is resilient to becoming obsolete.
+
+## How will we handle authentication?
+The idea is fresh in my mind at the time of writing, we figure that there could be a bot that generates an API key, rate limited for safety of course.
+
+## Okay, but __why__?
+This project is intended to replace "Hybrid Ledgers", we are creating an infinite-plane address-based entity archive, storing a database of "psychic links" that others may contribute to.
+
+## What is a "Psychic Link"?
+Mental content. Information. A bookmark to a location, to an idea, to a Noun. How do you access this information? We provide a "map", you just have to follow it with your mind.
 
 ## Project Setup
 (Python version 3.12.3)
+(Caddy)
+
+More information to come on hosting local instances.
