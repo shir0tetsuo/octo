@@ -43,3 +43,9 @@ Mental content. Information. A bookmark to a location, to an idea, to a Noun. Ho
 (Caddy)
 
 More information to come on hosting local instances.
+
+> [!IMPORTANT]
+> You should put your installation behind
+> a Caddy server proxy, in this case, the
+> server will serve HTTPS :443 at `octo.shadowsword.ca` by default,
+> or by your local instance on :9300 for testing.
