@@ -214,3 +214,6 @@ db/
 
 # The private decryption key file
 key.json
+
+# The prod caddy file
+Caddyfile

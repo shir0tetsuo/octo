@@ -338,7 +338,7 @@
 
             <div class="content-container">
             <div class="content-top">
-                <div class="scrollbar-glass">
+                <div class="scrollbar-glass" id="statusbartag">
                 status
                 </div>
                 <p class="title" id="loadingstatus">Loading...</p>
@@ -363,12 +363,18 @@
             function updateStatus(data, source) {
                 document.getElementById("loadingstatus").textContent =
                     `${source} Server: ${data.message ?? "unknown"}`;
+                updateStatusBarTag(data)
+            }
+
+            function updateStatusBarTag(data) {
+                document.getElementById("statusbartag").textContent =
+                    `${data.version ?? "unknown"}`
             }
 
             function doHealthPost() {
                 $.ajax({
                     type: "GET",
-                    url: "https://octo.shadowsword.ca/health",
+                    url: "https://octo.shadowsword.ca/api/health",
                     timeout: 3000,
                     dataType: "json",
                     success: function (data) {

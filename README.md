@@ -49,3 +49,21 @@ More information to come on hosting local instances.
 > a Caddy server proxy, in this case, the
 > server will serve HTTPS :443 at `octo.shadowsword.ca` by default,
 > or by your local instance on :9300 for testing.
+
+### Caddyfile
+Your Caddyfile should look something like this:
+```
+some.domain {
+
+    @notApi {
+        not path /api/*
+    }
+
+    respond @notApi 404
+
+    reverse_proxy localhost:9300 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+    }
+}
+```

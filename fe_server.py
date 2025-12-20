@@ -4,7 +4,7 @@ from __future__ import annotations
 #        It will handle User Authentication, db communication (with Key),
 
 # internal
-from engine import jsonsafe, verbose, versioning, security, validation
+from engine import jsonsafe, verbose, versioning, security, validation, ratelimits
 
 import sqlite3
 import asyncio
@@ -51,6 +51,7 @@ if not db_path.exists():
 
 class ServerOkayResponse(BaseModel):
     message: Literal['OK', 'ERROR']
+    version: str = versioning.distribution_version
 
 key_storage_file = ExtendToParentResource('engine', 'key.json')  # Where the private decryption key is stored
 
@@ -92,6 +93,8 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
     global key_storage_file
     decrypted:security.DecryptedToken = security.decrypt_api_key(api_key, key_storage_file)
     
+    ThrowIf(ratelimits.within_rate_limit(api_key) == False, 'Too many requests', status_code=status.HTTP_429_TOO_MANY_REQUESTS)
+
     if any([
         decrypted.decryption_success == False,
         decrypted.days_old >= 365,
@@ -101,7 +104,7 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
     
     return decrypted
 
-@server.get("/health", response_model=ServerOkayResponse)
+@server.get("/api/health", response_model=ServerOkayResponse)  # localhost:9300/health | domain.ca/health
 async def zone_health():
     return ServerOkayResponse(message='OK')
 
