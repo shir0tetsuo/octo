@@ -66,9 +66,9 @@ ENTITYSCHEMA = {
     'name'       : 'TEXT',                 # Generic Name Field (sanitized user input)
     'description': 'TEXT',                 # Generic Description Field (sanitized user input)
     
-    'positionX'  : 'INTEGER',              # X, Y, Z ...
+    'positionX'  : 'INTEGER',              # X, Y ...
     'positionY'  : 'INTEGER',
-    'positionZ'  : 'INTEGER',
+    #'positionZ'  : 'INTEGER',             # REMOVED
     
     'aesthetics' : 'TEXT',                 # Stringified JSON with address overrides
     'ownership'  : 'TEXT',                 # The Ownership ID
@@ -156,8 +156,8 @@ class EntityStore(BaseStore):
             
             # Fast lookup by UUID
             conn.execute("CREATE INDEX IF NOT EXISTS idx_uuid ON entities(uuid)")
-            # Fast 3D range queries
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_pos ON entities(positionX, positionY, positionZ)")
+            # Fast 2D range queries - UPDATED TO 2D
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_pos ON entities(positionX, positionY)")
             # Index for fast retrieval of latest versions
             conn.execute("CREATE INDEX IF NOT EXISTS idx_latest ON entities('index', 'iter' DESC)")
             
@@ -190,13 +190,11 @@ class EntityStore(BaseStore):
             SELECT * FROM entities 
             WHERE positionX BETWEEN ? AND ?
               AND positionY BETWEEN ? AND ?
-              AND positionZ BETWEEN ? AND ?
             LIMIT ?
         """
         params = (
             bounds['min_x'], bounds['max_x'],
             bounds['min_y'], bounds['max_y'],
-            bounds['min_z'], bounds['max_z'],
             bounds.get('limit', 1000)
         )
 
@@ -210,12 +208,12 @@ class EntityStore(BaseStore):
     def _row_to_dict(self, row: tuple) -> dict:
         """Helper to map tuple -> dict and parse JSON."""
         # Row structure order in DB: index, iter, uuid, state, name, description, 
-        # positionX, positionY, positionZ, aesthetics, ownership, minted, timestamp (13 columns)
+        # positionX, positionY, aesthetics, ownership, minted, timestamp (13 columns)
         try:
-            # Aesthetics is at index 9
-            aes = json.loads(row[9]) if row[9] else {}
+            # Aesthetics is at index 8 now
+            aes = json.loads(row[8]) if row[8] else {}
         except:
-            aes = row[9] # Fallback
+            aes = row[8] # Fallback
 
         return {
             "index": row[0],
@@ -226,11 +224,10 @@ class EntityStore(BaseStore):
             "description": row[5],
             "positionX": row[6],
             "positionY": row[7],
-            "positionZ": row[8],
             "aesthetics": aes,
-            "ownership": row[10],
-            "minted": bool(row[11]),
-            "timestamp": row[12]
+            "ownership": row[9],
+            "minted": bool(row[10]),
+            "timestamp": row[11]
         }
 
     # CRUD Operations ───────────────────────────
@@ -254,20 +251,20 @@ class EntityStore(BaseStore):
         if isinstance(db_row.get('aesthetics'), (dict, list)):
             db_row['aesthetics'] = json.dumps(db_row['aesthetics'])
 
-        # Enqueue - CORRECTED to include 'iter' column and placeholder
+        # Enqueue - UPDATED placeholders to 12
         async with self._conn() as conn:
             await anyio.to_thread.run_sync(
                 conn.execute,
                 """
                 INSERT INTO write_queue (
                     'index', 'iter', uuid, state, name, description,
-                    positionX, positionY, positionZ,
+                    positionX, positionY,
                     aesthetics, ownership, minted, timestamp
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     db_row['index'], db_row['iter'], db_row['uuid'], db_row['state'], db_row['name'], db_row['description'],
-                    db_row['positionX'], db_row['positionY'], db_row['positionZ'],
+                    db_row['positionX'], db_row['positionY'],
                     db_row['aesthetics'], db_row['ownership'], int(db_row['minted']), db_row['timestamp']
                 )
             )
@@ -354,15 +351,15 @@ class EntityStore(BaseStore):
                     try:
                         # Insert/Replace into main table - CORRECTED to include 'iter'
                         # Note: rows in write_queue have queue_id at index 0. 
-                        # We pass row[1:] (13 elements: index, iter, uuid, ...) to match entity table columns.
+                        # We pass row[1:] (12 elements) to match entity table columns.
                         data_tuples = [r[1:] for r in rows]
                         
                         conn.executemany("""
                             INSERT OR REPLACE INTO entities (
                                 'index', 'iter', uuid, state, name, description, 
-                                positionX, positionY, positionZ, 
+                                positionX, positionY,
                                 aesthetics, ownership, minted, timestamp
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, data_tuples)
 
                         # Clean queue
