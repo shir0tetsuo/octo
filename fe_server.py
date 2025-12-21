@@ -7,10 +7,12 @@ from __future__ import annotations
 from engine import jsonsafe, verbose, versioning, security, validation, ratelimits
 
 import sqlite3
+import httpx
 import asyncio
 import os, json, enum, inspect, subprocess, uuid, threading, time, base64
 
 DB_KEY = str(os.getenv('DB_X_API_KEY', ''))
+DB_SERVER = str(os.getenv('DB_SERVER', 'http://localhost:9401'))
 
 from dataclasses import is_dataclass, asdict
 from decimal     import Decimal
@@ -52,6 +54,7 @@ if not db_path.exists():
 class ServerOkayResponse(BaseModel):
     message: Literal['OK', 'ERROR']
     version: str = versioning.distribution_version
+    db_health: dict
 
 key_storage_file = ExtendToParentResource('engine', 'key.json')  # Where the private decryption key is stored
 
@@ -104,9 +107,34 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
     
     return decrypted
 
-@server.get("/api/health", response_model=ServerOkayResponse)  # localhost:9300/health | domain.ca/health
-async def zone_health():
-    return ServerOkayResponse(message='OK')
+
+@server.get("/api/health", response_model=ServerOkayResponse)
+async def system_health_check():
+    try:
+        response = httpx.get(
+            DB_SERVER + "/health",
+            headers={
+                "X-API-Key": DB_KEY
+            },
+            timeout=5.0
+        )
+
+        if response.status_code == status.HTTP_200_OK:
+            return ServerOkayResponse(
+                message="OK",
+                db_health=response.json()
+            )
+
+        return ServerOkayResponse(
+            message="ERROR",
+            db_health={"message": f"DB returned {response.status_code}"}
+        )
+
+    except httpx.ConnectError:
+        return ServerOkayResponse(
+            message="ERROR",
+            db_health={"message": "Database server unreachable"}
+        )
 
 if __name__ == "__main__":
     import uvicorn

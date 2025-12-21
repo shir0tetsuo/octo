@@ -50,6 +50,37 @@ More information to come on hosting local instances.
 > server will serve HTTPS :443 at `octo.shadowsword.ca` by default,
 > or by your local instance on :9300 for testing.
 
+### Create start script `start_server.sh`
+
+Your start script might look different depending on where you put your database server;
+For simplicity, both are included here, useful for testing:
+
+```bash
+#!/usr/bin/env bash
+export DB_X_API_KEY="THE_API_KEY_GENERATED_FROM_NEW_API_KEY_JUPYTER..."
+export DB_SERVER="http://localhost:9401"
+source ./venv/bin/activate
+python3 db_server.py &
+python3 fe_server.py
+# Caddy start not covered here
+wait
+```
+
+(Linux amd64) If you've put the Caddyfile in the root repository directory, `start_caddy.sh`:
+```bash
+#!/bin/bash
+~/your_download_location/caddy_linux_amd64 --config ~/Application/octo/Caddyfile
+```
+
+You may also set the following exports, this controls database cache IO settings:
+
+```python
+POOL_SIZE      = int(os.getenv("POOL_SIZE", 4))
+FLUSH_INTERVAL = float(os.getenv("FLUSH_INTERVAL", 2.0))
+MAX_QUEUE_ROWS = int(os.getenv("MAX_QUEUE_ROWS", 100)) # or 1000
+LRU_CACHE_SIZE = int(os.getenv("LRU_CACHE_SIZE", 2048))
+```
+
 ### Caddyfile
 Your Caddyfile should look something like this:
 ```

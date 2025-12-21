@@ -204,4 +204,4 @@ async def zone_health(zone: int):
 if __name__ == "__main__":
     import uvicorn
     # Use loop="asyncio" to prevent uvloop conflicts with generic thread pools if needed
-    uvicorn.run(server, host="0.0.0.0", port=8000, workers=1, loop="asyncio")
+    uvicorn.run(server, host="0.0.0.0", port=9401, workers=1, loop="asyncio")
