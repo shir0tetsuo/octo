@@ -60,7 +60,7 @@ def unwrap_kv_to_create_schema(
     return '\n'.join(init_lines)
 
 ENTITYSCHEMA = {
-    'uuid'       : 'TEXT UNIQUE',          # Master UUID. NOTE: 'uuid' is unique across all versions/iters!
+    'uuid'       : 'TEXT',                 # NOTE: Removed UNIQUE to allow multiple versions/iters in history
     'state'      : 'INTEGER',              # State is an integer for extra control
     # 'iter' is now part of the primary key in EntityStore.init
     'name'       : 'TEXT',                 # Generic Name Field (sanitized user input)
@@ -68,7 +68,7 @@ ENTITYSCHEMA = {
     
     'positionX'  : 'INTEGER',              # X, Y ...
     'positionY'  : 'INTEGER',
-    #'positionZ'  : 'INTEGER',             # REMOVED
+    #'positionZ'  : 'INTEGER',
     
     'aesthetics' : 'TEXT',                 # Stringified JSON with address overrides
     'ownership'  : 'TEXT',                 # The Ownership ID
@@ -148,15 +148,15 @@ class EntityStore(BaseStore):
             conn.execute("PRAGMA temp_store=MEMORY;")
             conn.execute("PRAGMA mmap_size=30000000000;")
             
-            # main table - CORRECTED SQL generation
+            # main table
             conn.execute(unwrap_kv_to_create_schema(ENTITYSCHEMA, 'entities', index_cols))
             
-            # queue table - CORRECTED SQL generation
+            # queue table
             conn.execute(unwrap_kv_to_create_schema(ENTITYSCHEMA, 'write_queue', index_cols, is_queue=True))
             
             # Fast lookup by UUID
             conn.execute("CREATE INDEX IF NOT EXISTS idx_uuid ON entities(uuid)")
-            # Fast 2D range queries - UPDATED TO 2D
+            # Fast 2D spatial queries
             conn.execute("CREATE INDEX IF NOT EXISTS idx_pos ON entities(positionX, positionY)")
             # Index for fast retrieval of latest versions
             conn.execute("CREATE INDEX IF NOT EXISTS idx_latest ON entities('index', 'iter' DESC)")
@@ -185,17 +185,20 @@ class EntityStore(BaseStore):
     async def range_query(self, bounds: dict):
         '''
         >>> bounds = { 'min_x': 0, 'max_x': 100, ... }
+        Returns the LATEST (max iter) version for every entity within bounds.
         '''
         sql = """
             SELECT * FROM entities 
             WHERE positionX BETWEEN ? AND ?
               AND positionY BETWEEN ? AND ?
+            GROUP BY "index"
+            HAVING MAX("iter")
             LIMIT ?
         """
         params = (
             bounds['min_x'], bounds['max_x'],
             bounds['min_y'], bounds['max_y'],
-            bounds.get('limit', 1000)
+            bounds.get('limit', 8*8)
         )
 
         async with self._conn() as conn:
@@ -207,8 +210,8 @@ class EntityStore(BaseStore):
 
     def _row_to_dict(self, row: tuple) -> dict:
         """Helper to map tuple -> dict and parse JSON."""
-        # Row structure order in DB: index, iter, uuid, state, name, description, 
-        # positionX, positionY, aesthetics, ownership, minted, timestamp (13 columns)
+        # Order: index(0), iter(1), uuid(2), state(3), name(4), description(5), 
+        # positionX(6), positionY(7), aesthetics(8), ownership(9), minted(10), timestamp(11)
         try:
             # Aesthetics is at index 8 now
             aes = json.loads(row[8]) if row[8] else {}
