@@ -21,7 +21,7 @@
         <link rel="stylesheet" href="./css/login.css">
 
         <!-- Bots No Index No Follow -->
-        <meta name="ROBOTS" content="NOFOLLOW">
+        <meta name="ROBOTS" content="NOINDEX,NOFOLLOW">
 
         <!-- For mobile support -->
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -34,12 +34,12 @@
     </head>
     <body>
         <div class="content">
-        <form action="">
+        <form action="javascript:void(0)" novalidate>
             <h2>Login</h2>
             <br>
             <div class="red" id="servermessage" style="display: none;">Hello World</div>
             <div class="input-box">
-            <input type="text" placeholder="X-API-Key" required />
+            <input type="text" placeholder="X-API-Key" required autocomplete="off" />
             <i class="ri-user-fill"></i>
             </div>
             <div class="remember">
@@ -51,13 +51,20 @@
             <a href="https://github.com/shir0tetsuo/octo"> <i class="ri-github-line"></i> Project Page </a>
             --
             <a href="./index.html"> <i class="ri-cloud-fill"></i> Status</a>
-            </a>
             </div>
         </form>
         </div>
 
     </body>
     <script type="text/javascript">
+        function safeRedirect(path) {
+            if (path && path.startsWith("/") && !path.startsWith("//")) {
+                window.location.href = path;
+            } else {
+                window.location.href = "./index.html";
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", function () {
             const form = document.querySelector("form");
             const apiKeyInput = form.querySelector('input[placeholder="X-API-Key"]');
@@ -76,10 +83,12 @@
                     date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
                     expires = "; expires=" + date.toUTCString();
                 }
+                const isHttps = location.protocol === "https:";
                 document.cookie =
                     name + "=" + encodeURIComponent(value) +
                     expires +
-                    "; path=/; SameSite=Strict; Secure";
+                    "; path=/; SameSite=Strict" +
+                    (isHttps ? "; Secure" : "");
             }
 
             function checkKey(url, apiKey) {
@@ -115,7 +124,9 @@
                 function handleSuccess(response) {
                     if (response?.valid_key) {
                         setCookie("X-API-Key", apiKey, rememberCheckbox.checked ? 30 : null);
-                        window.location.href = "./index.html";
+                        const params = new URLSearchParams(window.location.search);
+                        const redirectTo = params.get("redirect") || "./index.html";
+                        safeRedirect(redirectTo);
                     } else {
                         showServerMessage("This is not a valid key.");
                     }
