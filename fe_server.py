@@ -56,6 +56,9 @@ class ServerOkayResponse(BaseModel):
     version: str = versioning.distribution_version
     db_health: dict
 
+class APIKeyCheckRequest(BaseModel):
+    APIKey: str
+
 class KeyOkayResponse(BaseModel):
     valid_key: bool = False
 
@@ -112,17 +115,17 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
 
 # NOTE : More security checks can be expanded here, such as blacklisting ...
 @server.post("/api/CheckAPIKey", response_model=KeyOkayResponse)
-async def general_key_check(APIKey:str):
+async def general_key_check(payload: APIKeyCheckRequest):
     global key_storage_file
-    decrypted:security.DecryptedToken = security.decrypt_api_key(APIKey, key_storage_file)
+    decrypted:security.DecryptedToken = security.decrypt_api_key(payload.APIKey, key_storage_file)
 
     if any([
-        decrypted.decryption_success == False,
+        decrypted.decryption_success is False,
         decrypted.days_old >= 365,
-        validation.is_valid_uuid4(decrypted.ID) == False
+        validation.is_valid_uuid4(decrypted.ID) is False
     ]):
-        return KeyOkayResponse()
-    
+        return KeyOkayResponse(valid_key=False)
+
     return KeyOkayResponse(valid_key=True)
 
 @server.get("/api/health", response_model=ServerOkayResponse)
