@@ -69,7 +69,7 @@ wait
 (Linux amd64) If you've put the Caddyfile in the root repository directory, `start_caddy.sh`:
 ```bash
 #!/bin/bash
-~/your_download_location/caddy_linux_amd64 --config ~/Application/octo/Caddyfile
+~/your_download_location/caddy_linux_amd64 run --config ~/Application/octo/Caddyfile
 ```
 
 You may also set the following exports, this controls database cache IO settings:
@@ -80,6 +80,8 @@ FLUSH_INTERVAL = float(os.getenv("FLUSH_INTERVAL", 2.0))
 MAX_QUEUE_ROWS = int(os.getenv("MAX_QUEUE_ROWS", 100)) # or 1000
 LRU_CACHE_SIZE = int(os.getenv("LRU_CACHE_SIZE", 2048))
 ```
+
+Don't forget to `chmod u+x ./start_*.sh`
 
 ### Caddyfile
 Your Caddyfile should look something like this:
