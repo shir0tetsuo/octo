@@ -111,7 +111,7 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
     return decrypted
 
 # NOTE : More security checks can be expanded here, such as blacklisting ...
-@server.get("/api/CheckAPIKey", response_model=KeyOkayResponse)
+@server.post("/api/CheckAPIKey", response_model=KeyOkayResponse)
 async def general_key_check(APIKey:str):
     global key_storage_file
     decrypted:security.DecryptedToken = security.decrypt_api_key(APIKey, key_storage_file)
