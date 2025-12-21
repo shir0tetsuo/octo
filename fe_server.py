@@ -4,7 +4,7 @@ from __future__ import annotations
 #        It will handle User Authentication, db communication (with Key),
 
 # internal
-from engine import jsonsafe, verbose, versioning, security, validation, ratelimits
+from engine import jsonsafe, verbose, versioning, security, validation, ratelimits, databases
 
 import sqlite3
 import httpx
@@ -50,6 +50,8 @@ NewID = lambda: str(uuid.uuid4())
 db_path = ExtendToParentResource('db')
 if not db_path.exists():
     db_path.mkdir(parents=True, exist_ok=True)
+
+blacklist = databases.Blacklist(ExtendToParentResource('engine', 'blacklist.json'))
 
 class ServerOkayResponse(BaseModel):
     message: Literal['OK', 'ERROR']
@@ -99,10 +101,14 @@ ThrowIf = lambda statement, error_message='', status_code=status.HTTP_401_UNAUTH
 
 # NOTE : For actions that require an API Key!
 def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
-    global key_storage_file
+    global key_storage_file, blacklist
+
+    ThrowIf(ratelimits.within_rate_limit(api_key) == False, 'Too many requests', status_code=status.HTTP_429_TOO_MANY_REQUESTS)
+
     decrypted:security.DecryptedToken = security.decrypt_api_key(api_key, key_storage_file)
     
-    ThrowIf(ratelimits.within_rate_limit(api_key) == False, 'Too many requests', status_code=status.HTTP_429_TOO_MANY_REQUESTS)
+    for datakey in decrypted.data:
+        ThrowIf(datakey in blacklist.banned_ids, 'Blacklisted Key.')
 
     if any([
         decrypted.decryption_success == False,
@@ -116,8 +122,11 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
 # NOTE : More security checks can be expanded here, such as blacklisting ...
 @server.post("/api/CheckAPIKey", response_model=KeyOkayResponse)
 async def general_key_check(payload: APIKeyCheckRequest):
-    global key_storage_file
+    global key_storage_file, blacklist
     decrypted:security.DecryptedToken = security.decrypt_api_key(payload.APIKey, key_storage_file)
+
+    for datakey in decrypted.data:
+        ThrowIf(datakey in blacklist.banned_ids)
 
     if any([
         decrypted.decryption_success is False,
@@ -131,13 +140,12 @@ async def general_key_check(payload: APIKeyCheckRequest):
 @server.get("/api/health", response_model=ServerOkayResponse)
 async def system_health_check():
     try:
-        response = httpx.get(
-            DB_SERVER + "/health",
-            headers={
-                "X-API-Key": DB_KEY
-            },
-            timeout=5.0
-        )
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                DB_SERVER + "/health",
+                headers={"X-API-Key": DB_KEY},
+                timeout=5.0
+            )
 
         if response.status_code == status.HTTP_200_OK:
             return ServerOkayResponse(

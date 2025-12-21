@@ -2,13 +2,21 @@ import os
 import logging
 from pathlib import Path
 import json
+import contextlib
 import time
+import signal
 import asyncio
 import anyio
 import sqlite3
 from collections import OrderedDict
 from contextlib import asynccontextmanager
 from typing import Any, Optional
+import threading
+from typing import NewType, Any, Union
+import atexit
+
+DiscordUserID = NewType('DiscordUserID', str)
+'''For ID component of `'user:00000...'`'''
 
 # These are global defaults for longevity of disk
 POOL_SIZE      = int(os.getenv("POOL_SIZE", 4))
@@ -80,6 +88,74 @@ USERSCHEMA = {
     'uuid'       : 'TEXT UNIQUE',
     'emoji'      : 'TEXT',
 }
+
+class Blacklist:
+    # Expected to be low-write
+    def __init__(
+            self,
+            path: Path    
+        ):
+
+        self.path = path
+        self.name = path.name
+        self.lock = threading.RLock()
+        self.cache: dict[str, dict[str, float | str]] = self.read_file()
+        self._banned_cache: set[str] = set(['user:'+k for k in self.cache])
+        self.queue = 0
+        self.register_shutdown_hooks()
+
+    @property
+    def banned_ids(self) -> set[str]:
+        return self._banned_cache
+
+    def read_file(self):
+        if not self.path.exists():
+            return {}
+        try:
+            with self.lock:
+                with self.path.open("r", encoding="utf-8") as f:
+                    return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {}
+        
+    def add_entry(self, user_id: DiscordUserID):
+        with self.lock:
+            self.cache[str(user_id)] = {
+                "user": str(user_id),
+                "added_at": time.time()
+            }
+            self._banned_cache.add(f"user:{user_id}")
+
+            self.queue += 1
+
+            if self.queue >= 100:
+                self.flush()
+
+        return
+    
+    def flush(self):
+        with self.lock:
+            if not self.cache:
+                return
+
+            tmp = self.path.with_suffix(".tmp")
+            with tmp.open("w", encoding="utf-8") as f:
+                json.dump(self.cache, f, indent=4)
+
+            tmp.replace(self.path)
+            self.queue = 0
+
+    def _shutdown_handler(self, signum=None, frame=None):
+        self.flush()
+
+    def register_shutdown_hooks(self):
+        atexit.register(self.flush)
+
+        if threading.current_thread() is threading.main_thread():
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                signal.signal(sig, self._shutdown_handler)
+
+
 
 class BaseStore:
     def __init__(
@@ -169,7 +245,10 @@ class EntityStore(BaseStore):
     async def close(self):
         logger.info("Stopping...")
         self._running = False
-        if self._flush_task: await self._flush_task
+        if self._flush_task:
+            self._flush_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._flush_task
         await self._flush(force=True)
         while not self._pool.empty():
             (await self._pool.get()).close()
@@ -188,11 +267,17 @@ class EntityStore(BaseStore):
         Returns the LATEST (max iter) version for every entity within bounds.
         '''
         sql = """
-            SELECT * FROM entities 
-            WHERE positionX BETWEEN ? AND ?
-              AND positionY BETWEEN ? AND ?
-            GROUP BY "index"
-            HAVING MAX("iter")
+            SELECT e.*
+            FROM entities e
+            JOIN (
+                SELECT "index", MAX("iter") AS max_iter
+                FROM entities
+                WHERE positionX BETWEEN ? AND ?
+                AND positionY BETWEEN ? AND ?
+                GROUP BY "index"
+            ) latest
+            ON e."index" = latest."index"
+            AND e."iter" = latest.max_iter
             LIMIT ?
         """
         params = (
@@ -215,8 +300,8 @@ class EntityStore(BaseStore):
         try:
             # Aesthetics is at index 8 now
             aes = json.loads(row[8]) if row[8] else {}
-        except:
-            aes = row[8] # Fallback
+        except json.JSONDecodeError:
+            aes = {} # Fallback
 
         return {
             "index": row[0],
@@ -274,8 +359,16 @@ class EntityStore(BaseStore):
 
         self.writes += 1
         self.queue_depth += 1
+        # Normal flush threshold
         if self.queue_depth >= MAX_QUEUE_ROWS:
             await self._flush()
+
+        # Hard backpressure cap (safety valve)
+        elif self.queue_depth > MAX_QUEUE_ROWS * 10:
+            logger.warning(
+                f"Write queue overloaded ({self.queue_depth}), forcing flush"
+            )
+            await self._flush(force=True)
 
     async def get(self, index: int, iteration: Optional[int] = None) -> Optional[dict]:
         '''
@@ -341,44 +434,75 @@ class EntityStore(BaseStore):
     async def _flush(self, force: bool = False):
         async with self._write_lock:
             async with self._conn() as conn:
+
                 def _do_flush():
-                    # Batch fetch
-                    rows = conn.execute(
-                        "SELECT * FROM write_queue ORDER BY queue_id LIMIT ?",
-                        (MAX_QUEUE_ROWS * 2,)
-                    ).fetchall()
+                    # Dynamic batch sizing
+                    if force:
+                        batch_limit = MAX_QUEUE_ROWS * 10
+                    else:
+                        batch_limit = MAX_QUEUE_ROWS * 2
 
-                    if not rows: return 0
+                    total_flushed = 0
 
-                    conn.execute("BEGIN IMMEDIATE")
-                    try:
-                        # Insert/Replace into main table - CORRECTED to include 'iter'
-                        # Note: rows in write_queue have queue_id at index 0. 
-                        # We pass row[1:] (12 elements) to match entity table columns.
-                        data_tuples = [r[1:] for r in rows]
-                        
-                        conn.executemany("""
-                            INSERT OR REPLACE INTO entities (
-                                'index', 'iter', uuid, state, name, description, 
-                                positionX, positionY,
-                                aesthetics, ownership, minted, timestamp
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, data_tuples)
+                    while True:
+                        rows = conn.execute(
+                            "SELECT * FROM write_queue ORDER BY queue_id LIMIT ?",
+                            (batch_limit,)
+                        ).fetchall()
 
-                        # Clean queue
-                        ids = [(r[0],) for r in rows]
-                        conn.executemany("DELETE FROM write_queue WHERE queue_id=?", ids)
-                        
-                        conn.execute("COMMIT")
-                        if self.flushes % 20 == 0:
-                            conn.execute("PRAGMA wal_checkpoint(PASSIVE);")
-                        return len(rows)
-                    except Exception as e:
-                        conn.execute("ROLLBACK")
-                        logger.error(f"Flush failed: {e}")
-                        raise e
-                    
-                count = await anyio.to_thread.run_sync(_do_flush)
-                if count > 0:
+                        if not rows:
+                            break
+
+                        conn.execute("BEGIN IMMEDIATE")
+                        try:
+                            data_tuples = [r[1:] for r in rows]  # strip queue_id
+
+                            conn.executemany("""
+                                INSERT OR REPLACE INTO entities (
+                                    'index', 'iter', uuid, state, name, description,
+                                    positionX, positionY,
+                                    aesthetics, ownership, minted, timestamp
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """, data_tuples)
+
+                            ids = [(r[0],) for r in rows]
+                            conn.executemany(
+                                "DELETE FROM write_queue WHERE queue_id=?",
+                                ids
+                            )
+
+                            conn.execute("COMMIT")
+                            total_flushed += len(rows)
+
+                            # WAL hygiene
+                            if self.flushes % 20 == 0:
+                                conn.execute("PRAGMA wal_checkpoint(PASSIVE);")
+
+                            # Normal flush exits after one batch
+                            if not force:
+                                break
+
+                            # If force flushing but we didn't fill the batch,
+                            # the queue is effectively drained
+                            if len(rows) < batch_limit:
+                                break
+
+                        except Exception as e:
+                            conn.execute("ROLLBACK")
+                            logger.error(f"Flush failed: {e}")
+                            raise
+
+                    return total_flushed
+
+                flushed = await anyio.to_thread.run_sync(_do_flush)
+
+                if flushed > 0:
                     self.flushes += 1
-                    self.queue_depth = max(0, self.queue_depth - count)
+                    self.queue_depth = conn.execute(
+                        "SELECT COUNT(*) FROM write_queue"
+                    ).fetchone()[0]
+
+                    if force:
+                        logger.warning(
+                            f"Forced flush completed, flushed={flushed}, remaining={self.queue_depth}"
+                        )
