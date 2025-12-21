@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        
+        <title>Login with Key</title>
+        <!-- https://remixicon.com/ -->
+        <link
+            href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css"
+            rel="stylesheet"
+        />
+        <link rel="icon" type="image/png" sizes="512x512" href="favicon/favicon-512x512.png">
+        <link rel="icon" type="image/png" sizes="192x192" href="favicon/favicon-192x192.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+        <link rel="apple-touch-icon" href="favicon/apple-touch-icon.png">
+        <link rel="alternate icon" href="favicon/favicon.ico">
+
+        <script src="js/jquery-3.7.1.js"></script>
+
+        <link rel="stylesheet" href="./css/login.css">
+
+        <!-- Bots No Index No Follow -->
+        <meta name="ROBOTS" content="NOFOLLOW">
+
+        <!-- For mobile support -->
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <meta name="theme-color" content="#3da79a">
+        <meta property="og:site_name" content="Octo Application">
+        <meta property="og:image" content="./img/about-bg.gif">
+        <meta data-react-helmet="true" property="og:description" content="Lightweight repository project interacts with API Servers for a simple Data Library">    
+
+    </head>
+    <body>
+        <div class="content">
+        <form action="">
+            <h2>Login</h2>
+            <br>
+            <div class="red" id="servermessage" style="display: none;">Hello World</div>
+            <div class="input-box">
+            <input type="text" placeholder="X-API-Key" required />
+            <i class="ri-user-fill"></i>
+            </div>
+            <div class="remember">
+            <label><input type="checkbox" id="remember_me" />Remember me</label>
+            <a href="faq.md">Lost API Key?</a>
+            </div>
+            <button type="submit" class="btnn">Login</button>
+            <div class="button">
+            <a href="https://github.com/shir0tetsuo/octo"> <i class="ri-github-line"></i> Project Page </a>
+            --
+            <a href="./index.html"> <i class="ri-cloud-fill"></i> Status</a>
+            </a>
+            </div>
+        </form>
+        </div>
+
+    </body>
+    <script type="text/javascript">
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.querySelector("form");
+            const apiKeyInput = form.querySelector('input[placeholder="X-API-Key"]');
+            const rememberCheckbox = document.getElementById("remember_me");
+            const servermsgbox = document.getElementById("servermessage");
+
+            function showServerMessage(msg) {
+                servermsgbox.textContent = msg;
+                servermsgbox.style.display = "block";
+            }
+
+            function setCookie(name, value, days) {
+                let expires = "";
+                if (days) {
+                    const date = new Date();
+                    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                    expires = "; expires=" + date.toUTCString();
+                }
+                document.cookie =
+                    name + "=" + encodeURIComponent(value) +
+                    expires +
+                    "; path=/; SameSite=Strict; Secure";
+            }
+
+            function checkKey(url, apiKey) {
+                return $.ajax({
+                    type: "POST",
+                    url: url,
+                    timeout: 3000,
+                    contentType: "application/json",
+                    dataType: "json",
+                    data: JSON.stringify({ APIKey: apiKey })
+                });
+            }
+
+            form.addEventListener("submit", function (event) {
+                event.preventDefault();
+
+                const apiKey = apiKeyInput.value.trim();
+                if (!apiKey) {
+                    showServerMessage("Please enter an API Key");
+                    return;
+                }
+
+                checkKey("https://octo.shadowsword.ca/api/CheckAPIKey", apiKey)
+                    .done(handleSuccess)
+                    .fail(function () {
+                        checkKey("http://localhost:9300/api/CheckAPIKey", apiKey)
+                            .done(handleSuccess)
+                            .fail(function () {
+                                showServerMessage("Cannot establish connection.");
+                            });
+                    });
+
+                function handleSuccess(response) {
+                    if (response?.valid_key) {
+                        setCookie("X-API-Key", apiKey, rememberCheckbox.checked ? 30 : null);
+                        window.location.href = "./index.html";
+                    } else {
+                        showServerMessage("This is not a valid key.");
+                    }
+                }
+            });
+        });
+    </script>
+
+
+</html>

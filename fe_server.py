@@ -56,6 +56,9 @@ class ServerOkayResponse(BaseModel):
     version: str = versioning.distribution_version
     db_health: dict
 
+class KeyOkayResponse(BaseModel):
+    valid_key: bool = False
+
 key_storage_file = ExtendToParentResource('engine', 'key.json')  # Where the private decryption key is stored
 
 @asynccontextmanager
@@ -107,6 +110,20 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
     
     return decrypted
 
+# NOTE : More security checks can be expanded here, such as blacklisting ...
+@server.get("/api/CheckAPIKey", response_model=KeyOkayResponse)
+async def general_key_check(APIKey:str):
+    global key_storage_file
+    decrypted:security.DecryptedToken = security.decrypt_api_key(APIKey, key_storage_file)
+
+    if any([
+        decrypted.decryption_success == False,
+        decrypted.days_old >= 365,
+        validation.is_valid_uuid4(decrypted.ID) == False
+    ]):
+        return KeyOkayResponse()
+    
+    return KeyOkayResponse(valid_key=True)
 
 @server.get("/api/health", response_model=ServerOkayResponse)
 async def system_health_check():
