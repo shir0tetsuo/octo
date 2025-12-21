@@ -132,7 +132,7 @@
                         console.log("Remote server reachable");
                         updateDescription("Remote server reachable");
                         console.log(data?.db_health);
-                        showHiddenButton();
+                        showHiddenButton(data);
                         updateStatus(data, "Octo");
                     },
                     error: function () {
