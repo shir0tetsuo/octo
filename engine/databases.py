@@ -3,8 +3,12 @@ import logging
 from pathlib import Path
 import json
 import contextlib
+import uuid
+import random
 import time
+from datetime import datetime, timezone
 import signal
+import hashlib
 import asyncio
 import anyio
 import sqlite3
@@ -14,6 +18,7 @@ from typing import Any, Optional
 import threading
 from typing import NewType, Any, Union
 import atexit
+from zonecolors import ZONE_COLORS, ZONE_INTEGER
 
 DiscordUserID = NewType('DiscordUserID', str)
 '''For ID component of `'user:00000...'`'''
@@ -26,6 +31,30 @@ LRU_CACHE_SIZE = int(os.getenv("LRU_CACHE_SIZE", 2048))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("db")
+
+ReadableTS = lambda ts : datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+
+def _deterministic_rng(*parts) -> random.Random:
+    key = ":".join(map(str, parts))
+    seed = int(hashlib.sha256(key.encode()).hexdigest(), 16) % (2**32)
+    return random.Random(seed)
+
+def DeterministicAesthetic(
+        x:int,
+        y:int,
+        z:int
+    ) -> dict:
+
+    rng = _deterministic_rng(x, y, z)
+    # rng.randint(0,3), rng.choice([1,2,3]), noise=rng.random()
+    
+    # TODO : Hieroglyphs
+    return {
+        'bar' : {
+            f'channel_{i}' : rng.choice(ZONE_COLORS[z])
+            for i in list(range(0,8))
+        },
+    }
 
 def unwrap_kv_to_create_schema(
         kv:dict, 
@@ -155,7 +184,31 @@ class Blacklist:
             for sig in (signal.SIGINT, signal.SIGTERM):
                 signal.signal(sig, self._shutdown_handler)
 
+def normalize_entity(ent: dict) -> dict:
+    '''Adds exists to entity dict outputs'''
+    ent["exists"] = True
+    return ent
 
+def entity_genesis(
+        x: int, 
+        y: int,
+        z: int  # zone integer
+    ) -> dict:
+    return {
+        "index": None,
+        "iter": 0,
+        "uuid": str(uuid.uuid4()),
+        "state": 0,
+        "name": "Void",
+        "description": "Genesis",
+        "positionX": x,
+        "positionY": y,
+        "aesthetics": DeterministicAesthetic(x, y, z),
+        "ownership": None,
+        "minted": False,
+        "timestamp": time.time(),
+        "exists": False,
+    }
 
 class BaseStore:
     def __init__(

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 # internal
-from engine import jsonsafe, verbose, versioning, security, validation, databases
+from engine import jsonsafe, verbose, versioning, security, validation, databases, zonecolors
 
 import sqlite3
 import asyncio
@@ -45,7 +45,7 @@ NewID = lambda: str(uuid.uuid4())
 ZONES = {
     i : databases.EntityStore(
         ExtendToParentResource('db', f'zone{i}.sqlite'), databases.POOL_SIZE) 
-        for i in list(range(0, 5))
+        for i in zonecolors.ZONE_INTEGER
 }
 
 db_path = ExtendToParentResource('db')

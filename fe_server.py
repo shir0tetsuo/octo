@@ -165,7 +165,7 @@ async def general_key_check(payload: APIKeyCheckRequest):
     return KeyOkayResponse(valid_key=True)
 
 @server.post('/api/render')
-async def render_provider(request: Request, payload: EntititesRequest, user_context = Depends(APIKeyPresence)):
+async def render_provider(request: Request, payload: EntititesRequest, user_context:security.DecryptedToken = Depends(APIKeyPresence)):
 
     # TODO : time axis not yet implemented
 
@@ -204,14 +204,34 @@ async def render_provider(request: Request, payload: EntititesRequest, user_cont
 
             if response.status_code == status.HTTP_200_OK:
                 
-                # TODO : ...
+                data = response.json()
+
+                # Index DB results by (x, y)
+                entity_map = {
+                    (ent["positionX"], ent["positionY"]): databases.normalize_entity(ent)
+                    for ent in data
+                }
+
+                result_grid = []
+
                 for _y in y:
+                    row = []
                     for _x in x:
-                        print('MUST ADD LOGIC')
+                        ent = entity_map.get((_x, _y))
+                        if ent is None:
+                            ent = databases.entity_genesis(_x, _y, z)
+                        row.append(ent)
+                    result_grid.append(row)
 
-
-
-                return
+                # TODO : Commit genesis entities.
+                # TODO : Pydantic return class.
+                return {
+                    'message': 'OK',
+                    'x': x,
+                    'y': y,
+                    'entities': result_grid,
+                    'user_context': user_context
+                }
             
             else:
                 return ServerOkayResponse(

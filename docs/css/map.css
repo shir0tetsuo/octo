@@ -31,7 +31,8 @@ body {
   }
 
   .topnavigator {
-    height: 30px;
+    min-height: 30px;
+    max-height: 10vh;
     width: 100%;
     padding: 10px;
     position: fixed;
@@ -545,4 +546,16 @@ body {
         opacity: 0.25;
         transform: translate(10vw, 100vh);
     }
+}
+
+@font-face {
+  font-family: 'Noto Sans Egyptian Hieroglyphs';
+  src: url('../fonts/Noto_Sans_Egyptian_Hieroglyphs/NotoSansEgyptianHieroglyphs-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.hiero {
+  font-family: 'Noto Sans Egyptian Hieroglyphs', sans-serif;
 }
