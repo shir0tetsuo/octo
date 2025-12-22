@@ -4,7 +4,11 @@ from __future__ import annotations
 #        It will handle User Authentication, db communication (with Key),
 
 # internal
-from engine import jsonsafe, verbose, versioning, security, validation, ratelimits, databases
+from engine import (
+    verbose, versioning, mapmath,
+    jsonsafe, security, validation, 
+    ratelimits, databases
+)
 
 import sqlite3
 import httpx
@@ -29,7 +33,7 @@ import pandas as pd
 
 # FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi                 import FastAPI, Header, HTTPException, status, BackgroundTasks, Depends
+from fastapi                 import FastAPI, Header, HTTPException, status, BackgroundTasks, Depends, Request
 from fastapi.security        import APIKeyHeader
 from fastapi.responses       import PlainTextResponse # might be removed later
 from uvicorn                 import run as uvicorn_run
@@ -60,6 +64,12 @@ class ServerOkayResponse(BaseModel):
 
 class APIKeyCheckRequest(BaseModel):
     APIKey: str
+
+class EntititesRequest(BaseModel):
+    x_axis: int
+    y_axis: int
+    z_axis: Literal[0, 1, 2, 3, 4]
+    time_axis: float | None
 
 class KeyOkayResponse(BaseModel):
     valid_key: bool = False
@@ -103,7 +113,7 @@ ThrowIf = lambda statement, error_message='', status_code=status.HTTP_401_UNAUTH
 def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
     global key_storage_file, blacklist
 
-    ThrowIf(ratelimits.within_rate_limit(api_key) == False, 'Too many requests', status_code=status.HTTP_429_TOO_MANY_REQUESTS)
+    ThrowIf(ratelimits.within_key_rate_limit(api_key) == False, 'Too many requests', status_code=status.HTTP_429_TOO_MANY_REQUESTS)
 
     decrypted:security.DecryptedToken = security.decrypt_api_key(api_key, key_storage_file)
     
@@ -116,6 +126,23 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
         validation.is_valid_uuid4(decrypted.ID) == False
     ]):
         ThrowIf(True, 'Invalid API Key')
+    
+    return decrypted
+
+def APIKeyPresence(api_key = Depends(api_key_header)) -> security.DecryptedToken:
+
+    nil_account = security.DecryptedToken(decryption_success=False, data=[], days_old=0, ID=security.NoneID)
+
+    if not api_key:
+        return nil_account
+
+    decrypted:security.DecryptedToken = security.decrypt_api_key(api_key, key_storage_file)
+    if any([
+        decrypted.decryption_success == False,
+        decrypted.days_old >= 365,
+        validation.is_valid_uuid4(decrypted.ID) == False
+    ]):
+        return nil_account
     
     return decrypted
 
@@ -136,6 +163,69 @@ async def general_key_check(payload: APIKeyCheckRequest):
         return KeyOkayResponse(valid_key=False)
 
     return KeyOkayResponse(valid_key=True)
+
+@server.post('/api/render')
+async def render_provider(request: Request, payload: EntititesRequest, user_context = Depends(APIKeyPresence)):
+
+    # TODO : time axis not yet implemented
+
+    client_host = request.client.host
+
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host):
+        return ServerOkayResponse(
+            message='ERROR',
+            db_health={"message": "Rate Limit Exceeded"}
+        )
+
+    x = mapmath.expand_sequence(payload.x_axis)
+    y = mapmath.expand_sequence(payload.y_axis)
+    min_x = x[0]
+    max_x = x[-1]
+    min_y = y[0]
+    max_y = y[-1]
+    z = payload.z_axis  # ZONE
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                DB_SERVER + f"/range/{z}",
+                headers={"X-API-Key": DB_KEY},
+                timeout=5.0,
+                json={
+                    'query': {
+                        'min_x': min_x,
+                        'max_x': max_x,
+                        'min_y': min_y,
+                        'max_y': max_y,
+                        'limit': 64
+                    }
+                }
+            )
+
+            if response.status_code == status.HTTP_200_OK:
+                
+                # TODO : ...
+                for _y in y:
+                    for _x in x:
+                        print('MUST ADD LOGIC')
+
+
+
+                return
+            
+            else:
+                return ServerOkayResponse(
+                    message="ERROR",
+                    db_health={"message": f"DB returned {response.status_code}"}
+                )
+    
+    except httpx.ConnectError:
+        return ServerOkayResponse(
+            message="ERROR",
+            db_health={"message": "Database server unreachable"}
+        )
+
+    return
 
 @server.get("/api/health", response_model=ServerOkayResponse)
 async def system_health_check():

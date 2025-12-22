@@ -79,8 +79,6 @@ class RangeQuery(BaseModel):
     max_x: int
     min_y: int
     max_y: int
-    min_z: int
-    max_z: int
     limit: int = 1000
 
 @asynccontextmanager
