@@ -13,7 +13,7 @@ Too much read/write overhead of the same HTML/CSS/JS files? **Github Pages!**
 ### Why would we want to separate the database API from the frontend API?
 
 Primarily because if the database is just a database, we can serve it over our network using a Raspberry Pi.
-
+<img width="1696" height="779" alt="flow_diagram" src="https://github.com/user-attachments/assets/a17dd76c-fc84-4d18-8070-c94fa978ab2d" />
 
 ### Github Page &rarr; HTTPS API Frontend &rarr; Database Backend
 Leverages dynamic page building with static Github Pages and jquery.
