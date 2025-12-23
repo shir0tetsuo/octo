@@ -182,6 +182,14 @@
                 document.documentElement.style.setProperty('--banner-channel-7', b[7]);
             }
 
+            function ChangeUserNav(res) {
+                nav = document.getElementById('user-login-nav');
+                nav.innerHTML = '<i class="ri-passport-fill"></i> ' + String(res.user_context.ID).split('-')[0]
+                if (String(res.user_context.decryption_success)) {
+                    nav.href = '#'
+                }
+            }
+
             document.addEventListener("DOMContentLoaded", function () {
 
                 // Get params from location
@@ -205,6 +213,7 @@
                 .done(function (res) {
                     if (res.message == "OK") {
                         illuminate(res)
+                        ChangeUserNav(res)
                         toggleLoadingBar(false) // for now, before we get into real data loading
                         toggleLoadingBar(false, 'skeletonloading')
                     }
@@ -217,6 +226,7 @@
                     .done(function (res) {
                         if (res.message == "OK") {
                             illuminate(res)
+                            ChangeUserNav(res)
                             toggleLoadingBar(false) // for now, before we get into real data loading
                             toggleLoadingBar(false, 'skeletonloading')
                         }
