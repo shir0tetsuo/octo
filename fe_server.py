@@ -33,7 +33,7 @@ import pandas as pd
 
 # FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi                 import FastAPI, Header, HTTPException, status, BackgroundTasks, Depends, Request
+from fastapi                 import FastAPI, Header, HTTPException, status, BackgroundTasks, Depends, Request, Cookie
 from fastapi.security        import APIKeyHeader
 from fastapi.responses       import PlainTextResponse # might be removed later
 from uvicorn                 import run as uvicorn_run
@@ -86,7 +86,8 @@ async def lifespan(server: FastAPI):
     #    await store.close()
 
 server = FastAPI(title='Frontend Server', version=versioning.distribution_version, lifespan=lifespan)
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True, scheme_name="APIKeyAuth")
+strict_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True, scheme_name="APIKeyAuth")
+loose_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False, scheme_name="APIKeyAuth")
 server.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -110,7 +111,8 @@ ThrowIf = lambda statement, error_message='', status_code=status.HTTP_401_UNAUTH
 '''
 
 # NOTE : For actions that require an API Key!
-def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
+# NOTE : But this doesn't work right from Github Pages through Caddy anyway!!
+def Authorization(api_key = Depends(strict_api_key_header)) -> security.DecryptedToken:
     global key_storage_file, blacklist
 
     ThrowIf(ratelimits.within_key_rate_limit(api_key) == False, 'Too many requests', status_code=status.HTTP_429_TOO_MANY_REQUESTS)
@@ -129,21 +131,40 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
     
     return decrypted
 
-def APIKeyPresence(api_key = Depends(api_key_header)) -> security.DecryptedToken:
+# NOTE : This segment is new, doesn't work as intended.
+# TODO : Debug why cookie is not seen by server.
+#        Could bypass by passing it directly in the request.
 
-    nil_account = security.DecryptedToken(decryption_success=False, data=[], days_old=0, ID=security.NoneID)
+nil_account = security.DecryptedToken(
+    decryption_success=False,
+    data=[],
+    days_old=0,
+    ID=security.NoneID
+)
 
+def APIKeyPresence(
+        x_api_key_header: str | None = Header(None, alias="X-API-Key"),
+        x_api_key_cookie: str | None = Cookie(None, alias="X-API-Key")
+    ) -> security.DecryptedToken:
+    '''
+    Checks for an API key either in the header or in a cookie.
+    Returns a DecryptedToken if valid, otherwise returns nil_account.
+    '''
+    # Use header first, then fallback to cookie
+    api_key = x_api_key_header or x_api_key_cookie
     if not api_key:
         return nil_account
 
-    decrypted:security.DecryptedToken = security.decrypt_api_key(api_key, key_storage_file)
+    decrypted: security.DecryptedToken = security.decrypt_api_key(api_key, key_storage_file)
+
+    # Validate decrypted token
     if any([
-        decrypted.decryption_success == False,
+        decrypted.decryption_success is False,
         decrypted.days_old >= 365,
-        validation.is_valid_uuid4(decrypted.ID) == False
+        validation.is_valid_uuid4(decrypted.ID) is False
     ]):
         return nil_account
-    
+
     return decrypted
 
 # NOTE : More security checks can be expanded here, such as blacklisting ...
@@ -192,13 +213,11 @@ async def render_provider(request: Request, payload: EntititesRequest, user_cont
                 headers={"X-API-Key": DB_KEY},
                 timeout=5.0,
                 json={
-                    'query': {
-                        'min_x': min_x,
-                        'max_x': max_x,
-                        'min_y': min_y,
-                        'max_y': max_y,
-                        'limit': 64
-                    }
+                    'min_x': min_x,
+                    'max_x': max_x,
+                    'min_y': min_y,
+                    'max_y': max_y,
+                    'limit': 64
                 }
             )
 
@@ -230,7 +249,8 @@ async def render_provider(request: Request, payload: EntititesRequest, user_cont
                     'x': x,
                     'y': y,
                     'entities': result_grid,
-                    'user_context': user_context
+                    'user_context': user_context,
+                    'banner': databases.ZONE_COLORS[z]
                 }
             
             else:

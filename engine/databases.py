@@ -18,7 +18,6 @@ from typing import Any, Optional
 import threading
 from typing import NewType, Any, Union
 import atexit
-from zonecolors import ZONE_COLORS, ZONE_INTEGER
 
 DiscordUserID = NewType('DiscordUserID', str)
 '''For ID component of `'user:00000...'`'''
@@ -33,6 +32,37 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger("db")
 
 ReadableTS = lambda ts : datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+
+ZONE_INTEGER = list(range(0, 5))
+'''List int of Database'''
+
+ZONE_COLORS = {
+    0 : [
+        '#7489c9',        '#74c9c5',        '#74bcc9',        '#74abc9',
+        '#749ac9',        '#7489c9',        '#7478c9',        '#8174c9',
+        '#9274c9',        '#a374c9'
+    ],
+    1 : [
+        '#d74a49',        '#183e4b',        '#1a424f',        '#294f5b',
+        '#375c67',        '#53737b',        '#6f8a90',        '#8ba0a4',
+        '#bbc5c7',        '#eaeaea'
+    ],
+    2 : [
+        '#c0decc',        '#9ccbad',        '#77b88f',        '#53a675',
+        '#34b768',        '#4d9a6c',        '#3ba364',        '#478e64',
+        '#3f905f',        '#41825b'
+    ],
+    3 : [
+        '#732ff6',        '#7657eb',        '#7972df',        '#7e89d2',
+        '#849dc4',        '#8bb1b3',        '#93c3a0',        '#9cd488',
+        '#a5e569',        '#aff631'
+    ],
+    4 : [
+        '#e6d1a8',        '#e6cb92',        '#e6c47c',        '#e0ba6a',
+        '#d7ae5b',        '#cea34c',        '#c5983c',        '#ba8e32',
+        '#ab8538',        '#9c7c3c',        '#8c6c30'
+    ]
+}
 
 def _deterministic_rng(*parts) -> random.Random:
     key = ":".join(map(str, parts))

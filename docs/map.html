@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         
-        <title>Map Area</title>
+        <title>Map</title>
         <!-- https://remixicon.com/ -->
         <link
             href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css"
@@ -20,7 +20,7 @@
         <link rel="stylesheet" href="css/map.css">
 
         <!-- Bots No Index No Follow -->
-        <meta name="ROBOTS" content="NOFOLLOW">
+        <meta name="ROBOTS" content="NOINDEX,NOFOLLOW">
 
         <!-- For mobile support -->
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -35,8 +35,18 @@
         <div class="topnavigator">
             <div class="topleftbox">
                 <div class="topnavleft">
+                    <a href="index.html">
+                        <i class="ri-base-station-fill"></i> status
+                    </a>
+                </div>
+                <div class="topnavleft">
                     <a href="login.html" class="phasedBlue" id="user-login-nav">
-                        <i class="ri-login-circle-line"></i> login
+                        <i class="ri-passport-line"></i> login
+                    </a>
+                </div>
+                <div class="topnavleft">
+                    <a href="#" class="phasedYel">
+                        <i class="ri-treasure-map-line"></i> area
                     </a>
                 </div>
                 <div class="topnavleft">
@@ -61,21 +71,113 @@
                 </div>
                 <div class="topnavleft">
                     <a href="#" class="phased">
-                        <i class="ri-compass-discover-line"></i> Search
-                    </a>
-                </div>
-            </div>
-            <div class="toprightbox">
-                <div class="topnavright">
-                    <a href="index.html">
-                        <i class="ri-base-station-fill"></i> status
+                        <i class="ri-compass-discover-line"></i> search
                     </a>
                 </div>
             </div>
         </div>
-        <br><br>
         <div class="container">
-            This page is under construction.
+            <!-- TODO : Content, Loading -->
         </div>
+
+
+        <script type="text/javascript">
+
+            function RenderFactory(url, x, y, z, apikey=null) {
+                return $.ajax({
+                    type: "POST",
+                    url: url,
+                    timeout: 3000,
+                    contentType: "application/json",
+                    dataType: "json",
+                    headers: apikey ? { "X-API-Key": apikey } : {},
+                    data: JSON.stringify({ 'x_axis': x, 'y_axis': y, 'z_axis': z, 'time_axis': null })
+                })
+            }
+
+            function positiveNumber(params, param, fallback) {
+                const v = Number(params.get(param));
+                return Number.isFinite(v) && v > 0 ? v : fallback;
+            }
+
+            function nonNegativeNumber(params, param, fallback) {
+                const v = Number(params.get(param));
+                return Number.isFinite(v) && v >= 0 ? v : fallback;
+            }
+
+            function normalizeURL(x, y, z) {
+                const params = new URLSearchParams();
+
+                params.set("x", x);
+                params.set("y", y);
+                params.set("z", z);
+
+                const newURL = `${window.location.pathname}?${params.toString()}`;
+
+                window.history.replaceState({}, "", newURL);
+            }
+
+            function buildURL(x, y, z) {
+                const params = new URLSearchParams({
+                    x: x,
+                    y: y,
+                    z: z
+                });
+
+                return `${window.location.pathname}?${params.toString()}`;
+            }
+
+            function updateNavLinks(x, y, z) {
+                $("#x_plus").attr("href", buildURL(x + 1, y, z));
+                $("#x_minus").attr("href", buildURL(Math.max(1, x - 1), y, z));
+
+                $("#y_plus").attr("href", buildURL(x, y + 1, z));
+                $("#y_minus").attr("href", buildURL(x, Math.max(1, y - 1), z));
+            }
+
+            function getApiKeyFromCookie() {
+                const match = document.cookie.match(/(?:^|; )X-API-Key=([^;]*)/);
+                return match ? decodeURIComponent(match[1]) : null;
+            }
+
+            document.addEventListener("DOMContentLoaded", function () {
+
+                // Get params from location
+                const params = new URLSearchParams(window.location.search);
+
+                const xpos = Math.floor(nonNegativeNumber(params, 'x', 0));
+                const ypos = Math.floor(nonNegativeNumber(params, 'y', 0));
+                // Enforce [0,1,2,3,4]
+                const zone = Math.min(4, Math.max(0, Math.floor(nonNegativeNumber(params, 'z', 0))));
+
+                const apiKey = getApiKeyFromCookie();
+
+                console.log(xpos, ypos, zone, apiKey)
+
+                // normalize & update navigation
+                normalizeURL(xpos, ypos, zone);
+                updateNavLinks(xpos, ypos, zone);
+
+                // Load Data from Server
+                RenderFactory("https://octo.shadowsword.ca/api/render", xpos, ypos, zone, apiKey)
+                .done(function (res) {
+                    console.log(res)
+                })
+                .fail(function () {
+                    console.warn("Couldn't establish DNS connection, falling back to localhost.")
+                    RenderFactory("http://localhost:9300/api/render", xpos, ypos, zone)
+                    .done(function (res) {
+                        console.log(res)
+                    })
+                    .fail(function () {
+                        console.warn('Cannot establish server connection.')
+                    });
+                });
+
+            });
+
+
+        </script>
+
     </body>
 </html>

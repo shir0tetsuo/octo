@@ -114,6 +114,7 @@
                 checkKey("https://octo.shadowsword.ca/api/CheckAPIKey", apiKey)
                     .done(handleSuccess)
                     .fail(function () {
+                        console.warn("Couldn't establish DNS connection, falling back to localhost.")
                         checkKey("http://localhost:9300/api/CheckAPIKey", apiKey)
                             .done(handleSuccess)
                             .fail(function () {

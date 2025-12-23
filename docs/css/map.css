@@ -30,17 +30,16 @@ body {
     font-size: x-small;
   }
 
+  /* TODO : Display banner colors with CSS injection, animate */
   .topnavigator {
     min-height: 30px;
-    max-height: 10vh;
-    width: 100%;
     padding: 10px;
-    position: fixed;
+    position: sticky;
     z-index: 1;
-    top: -7px;
-    left: 0;
+    display: flex;
     background: #1d1d1d;
     overflow-y: hidden;
+    overflow-x: hidden;
   }
 
   .topleftbox {
@@ -66,7 +65,8 @@ body {
     min-width: 30px;
     max-width: 100px;
     padding: 5px;
-    padding-bottom: 0px !important;
+    margin-top: 2px;
+    margin-bottom: 2px;
     margin-left: 5px;
     align-items: center;
     height: 100%;
@@ -503,50 +503,6 @@ body {
       background-color: #7a0303;
     }
   }
-
-.snow-container {
-    overflow: hidden;
-    width: 100vw;
-    z-index: 0;
-    pointer-events: none;
-}
-
-.snowflake {
-    position: absolute;
-    background-color: white;
-    border-radius: 50%;
-    z-index: 0;
-    opacity: 0.8;
-    pointer-events: none;
-}
-
-@keyframes fall {
-    0% {
-        opacity: 0;
-        transform: translateY(0);
-    }
-    10% {
-        opacity: 1;
-    }
-    100% {
-        opacity: 0.5;
-        transform: translateY(100vh);
-    }
-}
-
-@keyframes diagonal-fall {
-    0% {
-        opacity: 0;
-        transform: translate(0, 0);
-    }
-    10% {
-        opacity: 1;
-    }
-    100% {
-        opacity: 0.25;
-        transform: translate(10vw, 100vh);
-    }
-}
 
 @font-face {
   font-family: 'Noto Sans Egyptian Hieroglyphs';
