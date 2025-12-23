@@ -48,7 +48,7 @@
                     </a>
                 </div>
                 <div class="topnavleft">
-                    <a href="login.html" class="phasedBlue" id="user-login-nav">
+                    <a href="login.html?redirect=map.html" class="phasedBlue" id="user-login-nav">
                         <i class="ri-passport-line"></i> login
                     </a>
                 </div>
@@ -185,8 +185,10 @@
             function ChangeUserNav(res) {
                 nav = document.getElementById('user-login-nav');
                 if (res.user_context.decryption_success) {
-                    nav.href = '#'
-                    nav.innerHTML = '<i class="ri-passport-fill"></i> ' + String(res.user_context.ID).split('-')[0]
+                    nav.href = '#'; // This will point to the user page
+                    nav.innerHTML = '<i class="ri-passport-fill"></i> ' + String(res.user_context.ID).split('-')[0];
+                } else {
+                    nav.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
                 }
             }
 
