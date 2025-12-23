@@ -184,9 +184,9 @@
 
             function ChangeUserNav(res) {
                 nav = document.getElementById('user-login-nav');
-                nav.innerHTML = '<i class="ri-passport-fill"></i> ' + String(res.user_context.ID).split('-')[0]
-                if (String(res.user_context.decryption_success)) {
+                if (res.user_context.decryption_success) {
                     nav.href = '#'
+                    nav.innerHTML = '<i class="ri-passport-fill"></i> ' + String(res.user_context.ID).split('-')[0]
                 }
             }
 
