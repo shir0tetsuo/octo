@@ -74,6 +74,7 @@
                         <i class="ri-compass-discover-line"></i> search
                     </a>
                 </div>
+                <div class="skeleton-image" id="loading"></div>
             </div>
         </div>
         <div class="container">
@@ -138,6 +139,18 @@
             function getApiKeyFromCookie() {
                 const match = document.cookie.match(/(?:^|; )X-API-Key=([^;]*)/);
                 return match ? decodeURIComponent(match[1]) : null;
+            }
+
+            function toggleLoadingBar(force) {
+                const loading = document.getElementById('loading');
+
+                if (force !== undefined) {
+                    // If force is provided, explicitly set display
+                    loading.style.display = force ? 'block' : 'none';
+                } else {
+                    // Otherwise, toggle
+                    loading.style.display = (loading.style.display === 'none') ? 'block' : 'none';
+                }
             }
 
             document.addEventListener("DOMContentLoaded", function () {
