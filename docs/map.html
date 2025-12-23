@@ -18,6 +18,7 @@
         <script src="js/jquery-3.7.1.js"></script>
 
         <link rel="stylesheet" href="css/map.css">
+        <link rel="stylesheet" href="css/common.css">
 
         <!-- Bots No Index No Follow -->
         <meta name="ROBOTS" content="NOINDEX,NOFOLLOW">
@@ -34,6 +35,13 @@
     <body>
         <div class="topnavigator">
             <div class="topleftbox">
+                <div class="floating-right" id="loading">
+                    <div class="bouncing-loader">
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                    </div>
+                </div>
                 <div class="topnavleft">
                     <a href="index.html">
                         <i class="ri-base-station-fill"></i> status
@@ -74,7 +82,8 @@
                         <i class="ri-compass-discover-line"></i> search
                     </a>
                 </div>
-                <div class="skeleton-image" id="loading"></div>
+
+                <div class="skeleton-image" id="skeletonloading"></div>
             </div>
         </div>
         <div class="container">
@@ -130,10 +139,10 @@
 
             function updateNavLinks(x, y, z) {
                 $("#x_plus").attr("href", buildURL(x + 1, y, z));
-                $("#x_minus").attr("href", buildURL(Math.max(1, x - 1), y, z));
+                $("#x_minus").attr("href", buildURL(Math.max(0, x - 1), y, z));
 
                 $("#y_plus").attr("href", buildURL(x, y + 1, z));
-                $("#y_minus").attr("href", buildURL(x, Math.max(1, y - 1), z));
+                $("#y_minus").attr("href", buildURL(x, Math.max(0, y - 1), z));
             }
 
             function getApiKeyFromCookie() {
@@ -141,8 +150,8 @@
                 return match ? decodeURIComponent(match[1]) : null;
             }
 
-            function toggleLoadingBar(force) {
-                const loading = document.getElementById('loading');
+            function toggleLoadingBar(force, loadingID='loading') {
+                const loading = document.getElementById(loadingID);
 
                 if (force !== undefined) {
                     // If force is provided, explicitly set display
@@ -151,6 +160,26 @@
                     // Otherwise, toggle
                     loading.style.display = (loading.style.display === 'none') ? 'block' : 'none';
                 }
+            }
+
+            function launch_error_toast(error_text) {
+                var t = document.getElementById("error_toast")
+                var d = document.getElementById("error_desc")
+                t.className = "show";
+                d.innerText = error_text;
+                setTimeout(function(){ t.className = t.className.replace("show", ""); }, 5000);
+            }
+
+            function illuminate(res) {
+                b = res.banner;
+                document.documentElement.style.setProperty('--banner-channel-0', b[0]);
+                document.documentElement.style.setProperty('--banner-channel-1', b[1]);
+                document.documentElement.style.setProperty('--banner-channel-2', b[2]);
+                document.documentElement.style.setProperty('--banner-channel-3', b[3]);
+                document.documentElement.style.setProperty('--banner-channel-4', b[4]);
+                document.documentElement.style.setProperty('--banner-channel-5', b[5]);
+                document.documentElement.style.setProperty('--banner-channel-6', b[6]);
+                document.documentElement.style.setProperty('--banner-channel-7', b[7]);
             }
 
             document.addEventListener("DOMContentLoaded", function () {
@@ -174,16 +203,31 @@
                 // Load Data from Server
                 RenderFactory("https://octo.shadowsword.ca/api/render", xpos, ypos, zone, apiKey)
                 .done(function (res) {
+                    if (res.message == "OK") {
+                        illuminate(res)
+                        toggleLoadingBar(false) // for now, before we get into real data loading
+                        toggleLoadingBar(false, 'skeletonloading')
+                    }
                     console.log(res)
                 })
                 .fail(function () {
+                    // fallback
                     console.warn("Couldn't establish DNS connection, falling back to localhost.")
                     RenderFactory("http://localhost:9300/api/render", xpos, ypos, zone)
                     .done(function (res) {
+                        if (res.message == "OK") {
+                            illuminate(res)
+                            toggleLoadingBar(false) // for now, before we get into real data loading
+                            toggleLoadingBar(false, 'skeletonloading')
+                        }
                         console.log(res)
                     })
                     .fail(function () {
+                        // Cannot load page, display Error Message
                         console.warn('Cannot establish server connection.')
+                        launch_error_toast('Cannot establish server connection.')
+                        toggleLoadingBar(false)
+                        toggleLoadingBar(false, 'skeletonloading')
                     });
                 });
 
@@ -191,6 +235,6 @@
 
 
         </script>
-
+        <div id="error_toast"><div id="icon"><i class="ri-signal-wifi-error-line"></i></div><div id="error_desc"></div></div>
     </body>
 </html>

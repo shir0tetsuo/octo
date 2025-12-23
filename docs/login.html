@@ -19,6 +19,7 @@
         <script src="js/jquery-3.7.1.js"></script>
 
         <link rel="stylesheet" href="./css/login.css">
+        <link rel="stylesheet" href="./css/common.css">
 
         <!-- Bots No Index No Follow -->
         <meta name="ROBOTS" content="NOINDEX,NOFOLLOW">
@@ -63,6 +64,14 @@
             } else {
                 window.location.href = "./index.html";
             }
+        }
+
+        function launch_error_toast(error_text) {
+            var t = document.getElementById("error_toast")
+            var d = document.getElementById("error_desc")
+            t.className = "show";
+            d.innerText = error_text;
+            setTimeout(function(){ t.className = t.className.replace("show", ""); }, 5000);
         }
 
         document.addEventListener("DOMContentLoaded", function () {
@@ -119,6 +128,7 @@
                             .done(handleSuccess)
                             .fail(function () {
                                 showServerMessage("Cannot establish connection.");
+                                launch_error_toast("Cannot establish server connection.")
                             });
                     });
 
@@ -135,6 +145,7 @@
             });
         });
     </script>
+    <div id="error_toast"><div id="icon"><i class="ri-signal-wifi-error-line"></i></div><div id="error_desc"></div></div>
 
 
 </html>

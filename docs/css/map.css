@@ -1,5 +1,13 @@
 :root {
     --dark-color: #212121;
+    --banner-channel-0: #00000000;
+    --banner-channel-1: #00000000;
+    --banner-channel-2: #00000000;
+    --banner-channel-3: #00000000;
+    --banner-channel-4: #00000000;
+    --banner-channel-5: #00000000;
+    --banner-channel-6: #00000000;
+    --banner-channel-7: #00000000;
 }
 
 body {
@@ -37,10 +45,29 @@ body {
     position: sticky;
     z-index: 1;
     display: flex;
-    background: #1d1d1d;
+    /*background: #1d1d1d;*/
+    background: linear-gradient(
+      270deg,
+      var(--banner-channel-0),
+      var(--banner-channel-1),
+      var(--banner-channel-2),
+      var(--banner-channel-3),
+      var(--banner-channel-4),
+      var(--banner-channel-5),
+      var(--banner-channel-6),
+      var(--banner-channel-7)
+    );
+    background-size: 800% 800%;
+    animation: gradientShift 12s ease infinite;
     overflow-y: hidden;
     overflow-x: hidden;
   }
+
+  @keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 
   .topleftbox {
     flex: auto;
@@ -69,7 +96,16 @@ body {
     margin-left: 5px;
     align-items: center;
     height: 100%;
-    background-color: #56565655;
+    background-color: #565656cb;
+  }
+
+  .floating-right {
+    position: absolute;
+    right: 20px;        /* Distance from the right edge */
+    top: 50%;           /* Move top edge to the middle of parent */
+    transform: translateY(-50%); /* Pull it back up by half its own height */
+    padding: 15px;
+    z-index: 10;        /* Ensures it sits above other content */
   }
 
   .topnavright {
@@ -503,64 +539,3 @@ body {
     }
   }
 
-@font-face {
-  font-family: 'Noto Sans Egyptian Hieroglyphs';
-  src: url('../fonts/Noto_Sans_Egyptian_Hieroglyphs/NotoSansEgyptianHieroglyphs-Regular.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-.hiero {
-  font-family: 'Noto Sans Egyptian Hieroglyphs', sans-serif;
-}
-
-.skeleton-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 300px;
-  padding: 20px;
-}
-
-.skeleton-image {
-  margin-top: 15px;
-  width: 100%;
-  height: 5px;
-  background: #2d2d2d;
-  border-radius: 8px;
-  animation: shimmer 1.5s infinite linear;
-}
-
-.skeleton-text {
-  width: 100%;
-  height: 20px;
-  background: #e0e0e0;
-  border-radius: 4px;
-  animation: shimmer 1.5s infinite linear;
-}
-
-.skeleton-text.short {
-  width: 60%;
-}
-
-
-@keyframes shimmer {
-  0% {
-    background-position: 100%;
-  }
-  100% {
-    background-position: -100%;
-  }
-}
-
-.skeleton-image,
-.skeleton-text {
-  background: linear-gradient(
-    90deg,
-    #161616 25%,
-    #303030 50%,
-    #141414 75%
-  );
-  background-size: 200% 100%;
-}
