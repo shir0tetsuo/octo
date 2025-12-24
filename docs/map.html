@@ -170,8 +170,16 @@
                 setTimeout(function(){ t.className = t.className.replace("show", ""); }, 5000);
             }
 
+            function shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+
             function illuminate(res) {
-                b = res.banner;
+                b = shuffle(res.banner);
                 document.documentElement.style.setProperty('--banner-channel-0', b[0]);
                 document.documentElement.style.setProperty('--banner-channel-1', b[1]);
                 document.documentElement.style.setProperty('--banner-channel-2', b[2]);
