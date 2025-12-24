@@ -308,7 +308,12 @@ def entity_genesis(
     return {
         "index": None,
         "iter": 0,
-        "uuid": str(uuid.uuid4()),
+        "uuid": str(
+            uuid.UUID(
+                int=_deterministic_rng(x,y,z).getrandbits(128), 
+                version=4
+            )
+        ),
         "state": 0,
         "name": "Void",
         "description": "Genesis",

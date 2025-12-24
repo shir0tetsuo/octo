@@ -136,7 +136,6 @@
                 bottom.className = "glyph-bottom";
 
                 const glyphs = Object.values(entity.aesthetics?.glyphs || {});
-
                 glyphs.slice(0, 8).forEach((g, i) => {
                     const d = document.createElement("div");
                     d.className = "glyph-slot";
@@ -160,10 +159,36 @@
                 owner.className = "owner";
                 owner.textContent = entity.owner ?? "00000000";
 
+                // extrusion tooltip with hidden timestamp
                 const extrusion = document.createElement("div");
                 extrusion.className = "extrude";
-                // Add channel band bar and timestamp
-                extrusion.innerHTML = '<a href="#">--:--:--</a>';
+
+                // Hidden timestamp value in a data attribute
+                const timestamp = entity.timestamp ?? 0; // float/int
+                extrusion.dataset.ts = timestamp;
+
+                const display = document.createElement("div");
+                //display.href = "#";
+                display.textContent = "--:--:--:--";
+                extrusion.appendChild(display);
+
+                // Function to update the display
+                function updateExtrusion() {
+                    const ts = parseFloat(extrusion.dataset.ts) * 1000;
+                    if (ts === 0) {
+                        display.textContent = "--:--:--:--";
+                    } else {
+                        let diff = (Date.now() - ts) / 1000; // seconds
+                        const days = Math.floor(diff / 86400);
+                        const hours = Math.floor((diff % 86400) / 3600);
+                        const minutes = Math.floor((diff % 3600) / 60);
+                        const seconds = Math.floor(diff % 60);
+                        display.textContent = `${days}d:${hours}h:${minutes}m:${seconds}s`;
+                    }
+                    requestAnimationFrame(updateExtrusion);
+                }
+
+                requestAnimationFrame(updateExtrusion);
 
                 center.append(uuid, owner, extrusion);
                 inner.append(top, center, bottom);
@@ -390,6 +415,7 @@
 
             /* ===== ANIMATED CHANNEL BACKGROUND ===== */
             .cell-pad {
+                cursor: default;
                 padding-top: 8px;
                 opacity: 0.9;
                 flex: 1;
