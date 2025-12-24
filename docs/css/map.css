@@ -25,7 +25,7 @@ body {
     grid-template-columns: repeat(8, 1fr);
     grid-template-rows: repeat(8, 1fr);
     gap: 0;
-    overflow: hidden;
+    overflow: scroll;
     min-height: calc(100vh - 60px);
     max-height: calc(95% - 30px);
   }
