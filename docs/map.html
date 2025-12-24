@@ -150,7 +150,7 @@
                 });
 
                 const center = document.createElement("div");
-                center.className = "center";
+                center.className = "center extrusionbase";
 
                 const uuid = document.createElement("div");
                 uuid.className = "uuid";
@@ -160,7 +160,12 @@
                 owner.className = "owner";
                 owner.textContent = entity.owner ?? "00000000";
 
-                center.append(uuid, owner);
+                const extrusion = document.createElement("div");
+                extrusion.className = "extrude";
+                // Add channel band bar and timestamp
+                extrusion.innerHTML = '<a href="#">--:--:--</a>';
+
+                center.append(uuid, owner, extrusion);
                 inner.append(top, center, bottom);
                 pad.append(inner);
                 cell.append(pad);
@@ -587,13 +592,13 @@
 
             .uuid {
                 color: #aaa;
-                font-size: clamp(10px, 1.4vmin, 16px);
+                font-size: clamp(16px, 1.4vmin, 20px);
                 text-shadow: 0 0 6px rgba(235, 235, 235, 0.6);
             }
 
-            .owner {
+            .owner { /* Includes iter number */
                 color: #aaa;
-                font-size: clamp(8px, 1vmin, 12px);
+                font-size: clamp(10px, 1vmin, 14px);
                 margin-top: 2px;
             }
         </style>
