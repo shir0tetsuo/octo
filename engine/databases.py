@@ -33,8 +33,8 @@ logger = logging.getLogger("db")
 
 ReadableTS = lambda ts : datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
 
-ZONE_INTEGER = list(range(0, 5))
-'''List int of Database'''
+ZONE_INTEGER = list(range(0, 8))
+'''List int of Database, where last integer is n zones.'''
 
 ZONE_COLORS = {
     0 : [
@@ -61,8 +61,85 @@ ZONE_COLORS = {
         '#e6d1a8',        '#e6cb92',        '#e6c47c',        '#e0ba6a',
         '#d7ae5b',        '#cea34c',        '#c5983c',        '#ba8e32',
         '#ab8538',        '#9c7c3c',        '#8c6c30'
+    ],
+    5 : [
+        '#1F1A2B',        '#211735',        '#250F46',
+        '#362A55',        '#4F3A87',        '#5828A6',
+        '#5F10B8',        '#7434E0',        '#782AEA',
+        '#7C17F4'
+    ],
+    6 : [
+        '#3C0325',        '#5F1036',        '#8B1742', 
+        '#BC1756',        '#E62D6A',        '#FF417F',
+        '#FF6E97',        '#FFA9B8',        '#FFD3D9'
+    ],
+    7 : [
+        '#98dadb',        '#98c8e5',        '#98b6ee',        '#a5ade7',
+        '#bdadd1',        '#d4acba',        '#e6a48f',        '#dfc090',
+        '#d5db90',        '#c2dea3',        '#accac3'
     ]
 }
+
+ZONE_GLYPH_TABLES = {
+    'birds': [
+        '𓄿','𓅀','𓅱','𓅷','𓅾','𓅟','𓅮','𓅙','𓅰','𓅚',
+        '𓅞','𓅪','𓅜','𓅛','𓅘','𓅓','𓅔','𓅃','𓅂'
+    ],
+    'sea': [
+        '𓆛','𓆜','𓆝','𓆞','𓆟','𓆡','𓆠','𓅻','𓈖','𓆢'
+    ],
+    'jackals': [
+        '𓃢','𓃦','𓃥','𓃣','𓁢','𓃤','𓃧','𓃨'
+    ],
+    'misc': [
+        '𓇌','𓆝','𓍝','𓇋','𓃣','𓍚','𓏢','𓐤','𓌬','𓆣','𓆥',
+        '𓆗','𓆏','𓆋','𓄇','𓃕','𓆉','𓅱'
+    ],
+    'reptiles': [
+        '𓆈','𓆉','𓆊','𓆌','𓆏','𓆇','𓆑','𓆓','𓆗','𓆙',
+        '𓆚','𓆘'
+    ],
+    'deities': [
+        '𓁛','𓁠','𓁦','𓁥','𓁮','𓁭','𓁤','𓁩','𓁳','𓁴','𓁧','𓁨',
+        '𓁱','𓁣','𓁚','𓁫','𓁟','𓁢','𓁵','𓁜'
+    ],
+        
+}
+
+ZONE_GLYPHS = {
+    0 : [
+        *ZONE_GLYPH_TABLES['birds']
+    ],
+    1 : [
+        *ZONE_GLYPH_TABLES['jackals'],
+        *ZONE_GLYPH_TABLES['sea']
+    ],
+    2 : [
+        *ZONE_GLYPH_TABLES['reptiles'],
+        *ZONE_GLYPH_TABLES['sea'],
+    ],
+    3 : [
+        *ZONE_GLYPH_TABLES['misc']
+    ],
+    4 : [
+        *ZONE_GLYPH_TABLES['jackals'],
+        *ZONE_GLYPH_TABLES['deities']
+    ],
+    5 : [
+        *ZONE_GLYPH_TABLES['jackals'],
+        *ZONE_GLYPH_TABLES['reptiles']
+    ],
+    6 : [
+        *ZONE_GLYPH_TABLES['sea'],
+        *ZONE_GLYPH_TABLES['birds'],
+        *ZONE_GLYPH_TABLES['deities']
+    ],
+    7 : [
+        *ZONE_GLYPH_TABLES['misc'],
+        *ZONE_GLYPH_TABLES['reptiles']
+    ]
+}
+
 
 def _deterministic_rng(*parts) -> random.Random:
     key = ":".join(map(str, parts))
@@ -84,6 +161,10 @@ def DeterministicAesthetic(
             f'channel_{i}' : rng.choice(ZONE_COLORS[z])
             for i in list(range(0,8))
         },
+        'glyphs' : {
+            'glyph_{i}' : rng.choice(ZONE_GLYPHS[z])
+            for i in list(range(0, 8))
+        }
     }
 
 def unwrap_kv_to_create_schema(
