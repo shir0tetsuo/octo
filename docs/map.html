@@ -86,12 +86,107 @@
                 <div class="skeleton-image" id="skeletonloading"></div>
             </div>
         </div>
-        <div class="container">
+        <div class="container" id="grid">
             <!-- TODO : Content, Loading -->
         </div>
 
 
         <script type="text/javascript">
+
+            // Cell Building
+
+            const grid = document.getElementById("grid");
+
+            function applyChannelAnimation(pad, channels) {
+                const keys = Object.keys(channels || {});
+                if (!keys.length) return;
+
+                // Use first 4 channels (or wrap)
+                for (let i = 0; i < 4; i++) {
+                    pad.style.setProperty(
+                        `--ch-${i}`,
+                        channels[keys[i % keys.length]]
+                    );
+                }
+            }
+
+            function buildCell(entity) {
+                const cell = document.createElement("div");
+                cell.className = "cell";
+                cell.dataset.state = entity.state ?? 0;
+
+                const pad = document.createElement("div");
+                pad.className = "cell-pad";
+
+                applyChannelAnimation(pad, entity.aesthetics?.bar);
+
+                const seed = parseInt(entity.uuid?.replace(/-/g, "").slice(0, 6), 16) || 0;
+                pad.style.animationDelay = `${-(seed % 1200) / 100}s`;
+
+                // optional: per-entity channel animation
+                if (entity.channels?.length) {
+                    pad.style.animation = "none";
+                    pad.style.background = entity.channels[0];
+                }
+
+                const inner = document.createElement("div");
+                inner.className = "cell-inner";
+
+                const top = document.createElement("div");
+                top.className = "glyph-top";
+
+                const bottom = document.createElement("div");
+                bottom.className = "glyph-bottom";
+
+                (entity.glyphs || []).slice(0,4).forEach(g => {
+                    const d = document.createElement("div");
+                    d.className = "glyph-slot";
+                    d.textContent = g;
+                    top.appendChild(d);
+                });
+
+                (entity.glyphs || []).slice(4,8).forEach(g => {
+                    const d = document.createElement("div");
+                    d.className = "glyph-slot";
+                    d.textContent = g;
+                    bottom.appendChild(d);
+                });
+
+                const center = document.createElement("div");
+                center.className = "center";
+
+                const uuid = document.createElement("div");
+                uuid.className = "uuid";
+                uuid.textContent = entity.uuid.slice(0, 8);
+
+                const owner = document.createElement("div");
+                owner.className = "owner";
+                owner.textContent = entity.owner ?? "00000000";
+
+                center.append(uuid, owner);
+                inner.append(top, center, bottom);
+                pad.append(inner);
+                cell.append(pad);
+
+                return cell;
+            }
+
+            function populateGrid(entityRows) {
+                grid.innerHTML = "";
+
+                for (let y = 0; y < 8; y++) {
+                    const row = entityRows[y];
+                    if (!row) continue;
+
+                    for (let x = 0; x < 8; x++) {
+                        const entity = row[x];
+                        grid.appendChild(buildCell(entity));
+                    }
+                }
+            }
+
+
+            // Factory Functions
 
             function RenderFactory(url, x, y, z, apikey=null) {
                 return $.ajax({
@@ -221,26 +316,30 @@
                 // Load Data from Server
                 RenderFactory("https://octo.shadowsword.ca/api/render", xpos, ypos, zone, apiKey)
                 .done(function (res) {
+                    console.log(res)
                     if (res.message == "OK") {
                         illuminate(res)
                         ChangeUserNav(res)
+                        populateGrid(res.entities)
                         toggleLoadingBar(false) // for now, before we get into real data loading
                         toggleLoadingBar(false, 'skeletonloading')
                     }
-                    console.log(res)
+                    
                 })
                 .fail(function () {
                     // fallback
                     console.warn("Couldn't establish DNS connection, falling back to localhost.")
                     RenderFactory("http://localhost:9300/api/render", xpos, ypos, zone)
                     .done(function (res) {
+                        console.log(res)
                         if (res.message == "OK") {
                             illuminate(res)
                             ChangeUserNav(res)
+                            populateGrid(res.entities)
                             toggleLoadingBar(false) // for now, before we get into real data loading
                             toggleLoadingBar(false, 'skeletonloading')
                         }
-                        console.log(res)
+                        
                     })
                     .fail(function () {
                         // Cannot load page, display Error Message
@@ -255,6 +354,174 @@
 
 
         </script>
+
+        <style>
+            html, body {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                background: #0a0a0a;
+                overflow: hidden;
+                font-family: monospace;
+            }
+
+            /* ===== GRID ===== */
+            #grid {
+                display: grid;
+                grid-template-columns: repeat(8, 1fr);
+                grid-template-rows: repeat(8, 1fr);
+                margin: auto;
+            }
+
+            /* ===== CELL ===== */
+            .cell {
+                box-sizing: border-box;
+                border: 2px solid #555; /* default (state 0) */
+                display: flex;
+            }
+
+            /* state-based borders */
+            .cell[data-state="1"] { border-color: #00ffff; }
+            .cell[data-state="2"] { border-color: #ff00ff; }
+            .cell[data-state="3"] { border-color: #ffaa00; }
+
+            /* ===== ANIMATED CHANNEL BACKGROUND ===== */
+            .cell-pad {
+                padding-top: 8px;
+                opacity: 0.9;
+                flex: 1;
+                display: flex;
+
+                /* Layered gradients */
+                background:
+                    radial-gradient(
+                        circle at 30% 30%,
+                        color-mix(in srgb, var(--ch-0) 70%, black 30%),
+                        transparent 60%
+                    ),
+                    radial-gradient(
+                        circle at 70% 70%,
+                        color-mix(in srgb, var(--ch-2) 70%, black 30%),
+                        transparent 65%
+                    ),
+                    linear-gradient(
+                        120deg,
+                        var(--ch-0),
+                        var(--ch-1),
+                        var(--ch-2),
+                        var(--ch-3)
+                    );
+
+                background-size:
+                    200% 200%,
+                    200% 200%,
+                    400% 400%;
+
+                animation:
+                    channelShift 12s ease-in-out infinite,
+                    channelPulse 6s ease-in-out infinite alternate;
+
+                filter: saturate(1.2);
+            }
+
+            @keyframes channelShift {
+                0% {
+                    background-position:
+                        0% 0%,
+                        100% 100%,
+                        0% 50%;
+                    filter: hue-rotate(0deg);
+                }
+
+                25% {
+                    background-position:
+                        50% 20%,
+                        80% 40%,
+                        50% 0%;
+                }
+
+                50% {
+                    background-position:
+                        100% 100%,
+                        0% 0%,
+                        100% 50%;
+                    filter: hue-rotate(120deg);
+                }
+
+                75% {
+                    background-position:
+                        40% 80%,
+                        20% 60%,
+                        50% 100%;
+                }
+
+                100% {
+                    background-position:
+                        0% 0%,
+                        100% 100%,
+                        0% 50%;
+                    filter: hue-rotate(360deg);
+                }
+            }
+
+            @keyframes channelPulse {
+                0% {
+                    filter: brightness(0.9) contrast(1.05) saturate(1.1);
+                }
+                100% {
+                    filter: brightness(1.15) contrast(1.25) saturate(1.4);
+                }
+            }
+
+
+
+            /* ===== INNER DARK CORE ===== */
+            .cell-inner {
+                background: #222;
+                flex: 1;
+                display: grid;
+                grid-template-rows: auto 1fr auto;
+                padding: 6%;
+                box-sizing: border-box;
+            }
+
+            /* ===== GLYPH BANDS ===== */
+            .glyph-top,
+            .glyph-bottom {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 4%;
+            }
+
+            .glyph-slot {
+                background: rgba(255,255,255,0.08);
+                color: #eee;
+                text-align: center;
+                font-size: clamp(8px, 1.2vmin, 14px);
+            }
+
+            /* ===== CENTER ===== */
+            .center {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+            }
+
+            .uuid {
+                color: #aaa;
+                font-size: clamp(10px, 1.4vmin, 16px);
+                text-shadow: 0 0 6px rgba(235, 235, 235, 0.6);
+            }
+
+            .owner {
+                color: #aaa;
+                font-size: clamp(8px, 1vmin, 12px);
+                margin-top: 2px;
+            }
+        </style>
+
         <div id="error_toast"><div id="icon"><i class="ri-signal-wifi-error-line"></i></div><div id="error_desc"></div></div>
     </body>
 </html>

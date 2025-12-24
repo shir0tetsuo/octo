@@ -18,7 +18,16 @@ body {
   }
 
   .container {
-    height: 100%;
+    background-image: url(../img/about-bg.gif);
+    background-repeat: repeat-x repeat-y;
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: 0;
+    overflow: hidden;
+    min-height: calc(100vh - 60px);
+    max-height: calc(95% - 30px);
   }
 
   .container table {
