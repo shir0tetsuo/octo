@@ -62,13 +62,21 @@ class ServerOkayResponse(BaseModel):
     version: str = versioning.distribution_version
     db_health: dict
 
+class ServerRenderResponse(BaseModel):
+    message: Literal['OK', 'ERROR']
+    x: list[int]
+    y: list[int]
+    entities: list[dict[str, Any]]
+    user_context: security.DecryptedToken
+    banner: list[str]
+
 class APIKeyCheckRequest(BaseModel):
     APIKey: str
 
 class EntititesRequest(BaseModel):
     x_axis: int
     y_axis: int
-    z_axis: Literal[0, 1, 2, 3, 4]
+    z_axis: Literal[0, 1, 2, 3, 4, 5, 6, 7]
     time_axis: float | None
 
 class KeyOkayResponse(BaseModel):

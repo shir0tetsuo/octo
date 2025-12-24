@@ -162,7 +162,7 @@ def DeterministicAesthetic(
             for i in list(range(0,8))
         },
         'glyphs' : {
-            'glyph_{i}' : rng.choice(ZONE_GLYPHS[z])
+            f'glyph_{i}' : rng.choice(ZONE_GLYPHS[z])
             for i in list(range(0, 8))
         }
     }
