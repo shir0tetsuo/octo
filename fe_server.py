@@ -62,6 +62,10 @@ class ServerOkayResponse(BaseModel):
     version: str = versioning.distribution_version
     db_health: dict
 
+class ServerRenewResponse(BaseModel):
+    message: Literal['OK', 'ERROR']
+    api_key: str
+
 class APIKeyCheckRequest(BaseModel):
     APIKey: str
 
@@ -201,6 +205,46 @@ async def general_key_check(
         return KeyOkayResponse(valid_key=False)
 
     return KeyOkayResponse(valid_key=True)
+
+@server.get("/api/APIKey/renew")
+async def renew_api_key(
+        request: Request,
+        user_context:security.DecryptedToken = Depends(Authorization)
+    ):
+    global key_storage_file, blacklist
+
+    client_host = request.client.host
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=10, WINDOW=60):
+        return ServerOkayResponse(
+            message='ERROR',
+            db_health={"message": "Rate Limit Exceeded"}
+        )
+    
+    for datakey in user_context.data:
+        ThrowIf(datakey in blacklist.banned_ids, "Banned User")
+    
+    ThrowIf( 
+        any(
+            [
+                user_context.decryption_success is False,
+                user_context.days_old >= 365,
+                validation.is_valid_uuid4(user_context.ID) is False
+            ]
+        ),
+        "Banned ID.",
+        status.HTTP_403_FORBIDDEN
+    )
+
+    new_key = security.create_api_key(
+        *user_context.data,
+        key_storage_file=key_storage_file,
+        ID=user_context.ID
+    ).decode()
+
+    return ServerRenewResponse(
+        message='OK',
+        api_key=new_key
+    )
 
 @server.post("/api/APIKey")
 async def give_decrypted_key(

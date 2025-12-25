@@ -49,15 +49,21 @@
                     Account Age: <x id="days_old_value">--</x> / 365
                     <div class="progressbar"><div id="days_old"></div></div>
                     <br>
-                    <!-- Currently executes nothing -->
-                    <button type="submit" class="btnn">Renew API Key</button>
-
-                    <div class="button">
-                    <a href="https://github.com/shir0tetsuo/octo"> <i class="ri-github-line"></i> Project Page </a>
-                    --
-                    <a href="./index.html"> <i class="ri-cloud-fill"></i> Status</a>
+                    <div class="remember">
+                        <label><input type="checkbox" id="remember_me" />Remember me</label>
+                        <a href="faq.html#forgotten-api-key">Lost API Key?</a>
                     </div>
+                    <button type="submit" class="btnn">Renew X-API-Key</button>
                 </form>
+                <div id="hidden-newkey" class="newkey">
+                    <a href="#" title="Copy" id="new-api-key-area" onclick="copyNewKey()"></a>
+                </div>
+                <div class="button">
+                    <a href="https://github.com/shir0tetsuo/octo"> <i class="ri-github-line"></i> Project Page </a>
+                    <a href="./index.html"> <i class="ri-cloud-fill"></i> Status</a>
+                    <br>
+                    <a href="#" onclick="safeExit()"><i class="ri-corner-down-left-fill"></i> Return</a>
+                </div>
             </div>
         </div>
 
@@ -69,14 +75,14 @@
             } else {
                 window.location.href = "./index.html";
             }
-        }
+        };
 
         function reveal_content() {
             l = document.getElementById("loading")
             l.style.setProperty("display", 'none')
             c = document.getElementById("noshow")
             c.style.setProperty("display", "block")
-        }
+        };
 
         function launch_error_toast(error_text) {
             var t = document.getElementById("error_toast")
@@ -84,7 +90,15 @@
             t.className = "show";
             d.innerText = error_text;
             setTimeout(function(){ t.className = t.className.replace("show", ""); }, 5000);
-        }
+        };
+
+        function launch_toast(normal_text) {
+            var t = document.getElementById("normal_toast")
+            var d = document.getElementById("normal_desc")
+            t.className = "show";
+            d.innerText = normal_text;
+            setTimeout(function(){ t.className = t.className.replace("show", ""); }, 5000);
+        };
 
         // Do not remove.
         function setCookie(name, value, days) {
@@ -100,7 +114,7 @@
                 expires +
                 "; path=/; SameSite=Strict" +
                 (isHttps ? "; Secure" : "");
-        }
+        };
 
         function checkKey(url, apiKey) {
             return $.ajax({
@@ -111,18 +125,70 @@
                 dataType: "json",
                 data: JSON.stringify({ APIKey: apiKey })
             });
-        }
+        };
+
+        function renewKey(url, apiKey) {
+            return $.ajax({
+                type: "GET",
+                url: url,
+                headers: {"X-API-Key": apiKey},
+                timeout: 2000
+            });
+        };
 
         function getApiKeyFromCookie() {
             const match = document.cookie.match(/(?:^|; )X-API-Key=([^;]*)/);
             return match ? decodeURIComponent(match[1]) : null;
-        }
+        };
 
         function safeExit() {
             const params = new URLSearchParams(window.location.search);
             const redirectTo = params.get("redirect") || "./index.html";
-            safeRedirect();
+            safeRedirect(redirectTo);
+        };
+        
+        function setCookie(name, value, days) {
+            let expires = "";
+            if (days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            const isHttps = location.protocol === "https:";
+            document.cookie =
+                name + "=" + encodeURIComponent(value) +
+                expires +
+                "; path=/; SameSite=Strict" +
+                (isHttps ? "; Secure" : "");
+        };
+
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                console.log("Copied to clipboard");
+            } catch (err) {
+                console.error("Failed to copy:", err);
+            }
         }
+
+        function copyNewKey() {
+            const keyArea = document.getElementById("new-api-key-area")
+            copyToClipboard(keyArea.innerText)
+            launch_toast("Copied to Clipboard.")
+        }
+
+        function handleRenewSuccess(response) {
+            const rememberCheckbox = document.getElementById("remember_me");
+            if (response?.api_key) {
+                setCookie("X-API-Key", response.api_key, rememberCheckbox.checked ? 30 : null);
+                const keyArea = document.getElementById("new-api-key-area")
+                keyArea.innerText = response.api_key;
+                const HiddenKeyArea = document.getElementById("hidden-newkey")
+                HiddenKeyArea.style.setProperty('display', 'block');
+            } else {
+                launch_error_toast("Unexpected Error.");
+            }
+        };
 
         // main
         function handleSuccess(response) {
@@ -146,13 +212,30 @@
             days_element.style.setProperty('--xch0', '#ff0000');
             days_element.style.setProperty('--xch1', '#2d2d2d');
             days_element.className = 'prog';
+            if (percent_old >= 75) { launch_error_toast("Your account is getting old, consider renewing your X-API-Key.") }
 
-            reveal_content()
-        }
+            // form controller
+            const form = document.querySelector("form");
+            form.addEventListener("submit", function (event) {
+                const apiKey = getApiKeyFromCookie()
+                renewKey("https://octo.shadowsword.ca/api/APIKey/renew", apiKey)
+                .done(handleRenewSuccess)
+                .fail(function () {
+                    console.warn("Couldn't establish DNS connection, falling back to localhost.")
+                    renewKey("http://localhost:9300/api/APIKey/renew", apiKey)
+                    .done(handleRenewSuccess)
+                    .fail(function() {
+                        launch_error_toast("Unexpected error.")
+                    })
+                })
+            })
+
+            reveal_content();
+        };
 
         document.addEventListener("DOMContentLoaded", function () {
 
-            const apiKey = getApiKeyFromCookie()
+            const apiKey = getApiKeyFromCookie();
             if (!apiKey) {
                 return safeExit();
             }
@@ -172,7 +255,9 @@
 
         });
     </script>
-    <div id="error_toast"><div id="icon"><i class="ri-signal-wifi-error-line"></i></div><div id="error_desc"></div></div>
+    <div id="error_toast"><div id="icon"><i class="ri-pass-expired-line"></i></div><div id="error_desc"></div></div>
+    <div id="normal_toast"><div id="icon"><i class="ri-clipboard-fill"></i></div><div id="normal_desc"></div></div>
+
 
 
 </html>

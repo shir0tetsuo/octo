@@ -141,3 +141,17 @@ input::-webkit-contacts-auto-fill-button {
 .red {
   color: #ff0000dd;
 }
+
+.newkey {
+  display: none;
+  background-color: #2d2d2d;
+  border: #06193f;
+  border-radius: 5px;
+  padding: 10px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  width: 100%;
+  text-align: justify;
+  overflow-wrap: break-word;
+  word-break: break-all;
+}

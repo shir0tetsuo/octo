@@ -1,6 +1,64 @@
 
 /* Toast */
 
+#normal_toast {
+    visibility: hidden;
+    position: fixed;
+    z-index: 1000; /* High z-index to stay on top */
+    left: 50%;
+    transform: translateX(-50%); /* Centers the toast horizontally */
+    bottom: 30px;
+    
+    background-color: #004042;
+    color: #fff;
+    border-radius: 2px;
+    display: flex;         /* Allows icon and text to sit side-by-side */
+    align-items: stretch;  /* Ensures icon and text have same height */
+    
+    width: fit-content;    /* MAGIC: Box only grows as wide as the text */
+    min-width: 50px;
+    max-width: 50px;       /* Start collapsed (only showing icon) */
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+#normal_toast #icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #002424;
+    flex-shrink: 0;        /* Prevents icon from squishing */
+}
+
+#normal_toast #normal_desc {
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Centers text horizontally inside the expanding part */
+    padding: 0 20px;
+    flex-grow: 1;
+    font-size: 17px;
+    opacity: 0;             /* Hidden until expanded */
+    transition: opacity 0.3s;
+}
+
+/* Animation Trigger */
+#normal_toast.show {
+    visibility: visible;
+    /* Combined animations */
+    animation: 
+        fadein 0.5s forwards, 
+        expand 0.5s 0.5s forwards, 
+        stay 3s 1s forwards, 
+        shrink 0.5s 4s forwards, 
+        fadeout 0.5s 4.5s forwards;
+}
+
+#normal_toast.show #normal_desc {
+    opacity: 1; /* Fade text in when shown */
+}
+
 #error_toast {
     visibility: hidden;
     position: fixed;
