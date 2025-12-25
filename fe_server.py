@@ -174,9 +174,20 @@ def APIKeyPresence(
     return decrypted
 
 # NOTE : More security checks can be expanded here, such as blacklisting ...
-@server.post("/api/CheckAPIKey", response_model=KeyOkayResponse)
-async def general_key_check(payload: APIKeyCheckRequest):
+@server.post("/api/CheckAPIKey")
+async def general_key_check(
+        request: Request,
+        payload: APIKeyCheckRequest
+    ):
     global key_storage_file, blacklist
+
+    client_host = request.client.host
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=10, WINDOW=40):
+        return ServerOkayResponse(
+            message='ERROR',
+            db_health={"message": "Rate Limit Exceeded"}
+        )
+
     decrypted:security.DecryptedToken = security.decrypt_api_key(payload.APIKey, key_storage_file)
 
     for datakey in decrypted.data:
@@ -190,6 +201,34 @@ async def general_key_check(payload: APIKeyCheckRequest):
         return KeyOkayResponse(valid_key=False)
 
     return KeyOkayResponse(valid_key=True)
+
+@server.post("/api/APIKey")
+async def give_decrypted_key(
+        request: Request,
+        payload: APIKeyCheckRequest
+    ):
+    global key_storage_file, blacklist
+
+    client_host = request.client.host
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=10, WINDOW=40):
+        return ServerOkayResponse(
+            message='ERROR',
+            db_health={"message": "Rate Limit Exceeded"}
+        )
+    
+    decrypted:security.DecryptedToken = security.decrypt_api_key(payload.APIKey, key_storage_file)
+
+    for datakey in decrypted.data:
+        ThrowIf(datakey in blacklist.banned_ids)
+
+    if any([
+        decrypted.decryption_success is False,
+        decrypted.days_old >= 365,
+        validation.is_valid_uuid4(decrypted.ID) is False
+    ]):
+        return nil_account
+
+    return decrypted
 
 @server.post('/api/render')
 async def render_provider(

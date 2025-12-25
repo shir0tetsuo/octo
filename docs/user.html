@@ -35,17 +35,24 @@
     </head>
     <body>
         <div class="content">
-        <form action="javascript:void(0)" novalidate>
-            <h2>Nothing here</h2>
-            <br>
-            You find yourself somewhere unfamiliar.
-            <button type="submit" class="btnn">Renew API Key</button>
-            <div class="button">
-            <a href="https://github.com/shir0tetsuo/octo"> <i class="ri-github-line"></i> Project Page </a>
-            --
-            <a href="./index.html"> <i class="ri-cloud-fill"></i> Status</a>
+            <div class="bouncing-loader" id="loading">
+                <div></div>
+                <div></div>
+                <div></div>
             </div>
-        </form>
+            <div id="noshow" style="display: none;">
+                <form action="javascript:void(0)" novalidate>
+                    <h2>Nothing here</h2>
+                    <br>
+                    You find yourself somewhere unfamiliar.
+                    <button type="submit" class="btnn">Renew API Key</button>
+                    <div class="button">
+                    <a href="https://github.com/shir0tetsuo/octo"> <i class="ri-github-line"></i> Project Page </a>
+                    --
+                    <a href="./index.html"> <i class="ri-cloud-fill"></i> Status</a>
+                    </div>
+                </form>
+            </div>
         </div>
 
     </body>
@@ -56,6 +63,13 @@
             } else {
                 window.location.href = "./index.html";
             }
+        }
+
+        function reveal_content() {
+            l = document.getElementById("loading")
+            l.style.setProperty("display", 'none')
+            c = document.getElementById("noshow")
+            c.style.setProperty("display", "block")
         }
 
         function launch_error_toast(error_text) {
@@ -107,7 +121,8 @@
         function handleSuccess(response) {
             console.log('Server responds with data.')
             console.log(response)
-            if ( !response?.valid_key) { safeExit(); };
+            if ( !response?.decryption_success) { safeExit(); };
+            reveal_content()
         }
 
         document.addEventListener("DOMContentLoaded", function () {
@@ -117,21 +132,20 @@
                 return safeExit();
             }
 
-            form.addEventListener("DOMContentLoaded", function () {
 
-                checkKey("https://octo.shadowsword.ca/api/CheckAPIKey", apiKey)
-                    .done(handleSuccess)
-                    .fail(function () {
-                        console.warn("Couldn't establish DNS connection, falling back to localhost.")
-                        checkKey("http://localhost:9300/api/CheckAPIKey", apiKey)
-                            .done(handleSuccess)
-                            .fail(function () {
-                                // force exit if invalid key
-                                safeExit();
-                            });
-                    });
+            checkKey("https://octo.shadowsword.ca/api/APIKey", apiKey)
+                .done(handleSuccess)
+                .fail(function () {
+                    console.warn("Couldn't establish DNS connection, falling back to localhost.")
+                    checkKey("http://localhost:9300/api/APIKey", apiKey)
+                        .done(handleSuccess)
+                        .fail(function () {
+                            // force exit if invalid key
+                            safeExit();
+                        });
+                });
 
-            });
+
         });
     </script>
     <div id="error_toast"><div id="icon"><i class="ri-signal-wifi-error-line"></i></div><div id="error_desc"></div></div>
