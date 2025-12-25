@@ -295,9 +295,10 @@ class Blacklist:
             for sig in (signal.SIGINT, signal.SIGTERM):
                 signal.signal(sig, self._shutdown_handler)
 
-def normalize_entity(ent: dict) -> dict:
+def normalize_entity(ent: dict, z: int) -> dict:
     '''Adds exists to entity dict outputs'''
     ent["exists"] = True
+    ent["PositionZ"] = z
     return ent
 
 def entity_genesis(
@@ -319,6 +320,7 @@ def entity_genesis(
         "description": "Genesis",
         "positionX": x,
         "positionY": y,
+        "positionZ": z,
         "aesthetics": DeterministicAesthetic(x, y, z),
         "ownership": None,
         "minted": False,

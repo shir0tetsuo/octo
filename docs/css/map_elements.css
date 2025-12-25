@@ -1,0 +1,259 @@
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #0a0a0a;
+    overflow: hidden;
+    font-family: monospace;
+}
+
+/* ===== GRID ===== */
+#grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    margin: auto;
+}
+
+/* ===== CELL ===== */
+.cell {
+    box-sizing: border-box;
+    border: 2px solid #555; /* default (state 0) */
+    display: flex;
+}
+
+/* state-based borders */
+.cell[data-state="1"] { border-color: #00ffff; }
+.cell[data-state="2"] { border-color: #ff00ff; }
+.cell[data-state="3"] { border-color: #ffaa00; }
+
+/* ===== ANIMATED CHANNEL BACKGROUND ===== */
+.cell-pad {
+    cursor: default;
+    padding-top: 8px;
+    opacity: 0.9;
+    flex: 1;
+    display: flex;
+
+    /* Layered gradients */
+    background:
+        radial-gradient(
+            circle at 30% 30%,
+            color-mix(in srgb, var(--ch-0) 70%, black 30%),
+            transparent 60%
+        ),
+        radial-gradient(
+            circle at 70% 70%,
+            color-mix(in srgb, var(--ch-2) 70%, black 30%),
+            transparent 65%
+        ),
+        linear-gradient(
+            120deg,
+            var(--ch-0),
+            var(--ch-1),
+            var(--ch-2),
+            var(--ch-3)
+        );
+
+    background-size:
+        200% 200%,
+        200% 200%,
+        400% 400%;
+
+    animation:
+        channelShift 12s ease-in-out infinite,
+        channelPulse 6s ease-in-out infinite alternate;
+
+    filter: saturate(1.2);
+}
+
+.cell-inner:hover {
+    background-color: #000000;
+    opacity: 1;
+    transition: .25s ease-in-out;
+}
+
+.cell-bar {
+    margin-top:5px; 
+    width: 100%; 
+    height: 2px; 
+    background-color: #2d2d2d;
+    opacity: 1 IM !important;
+}
+
+.cell-bar .bar-el {
+    width: 12.5%;
+    background: linear-gradient(74deg, var(--xch0) 0, var(--xch0) 20%, var(--xch1) 75%); 
+    height: 100%; 
+    float: left;
+}
+
+.glyph-slot {
+    background: rgba(255,255,255,0.08);
+    color: var(--c0);
+    font-size: clamp(25px, 1.3vmin, 30px);
+    font-family: 'Noto Sans Egyptian Hieroglyphs', sans-serif;
+    text-align: center;
+    width: 100%;
+    position: relative;
+    text-shadow:
+        0 0 4px currentColor,
+        1px 0 rgba(255, 0, 255, 0.25),
+    -1px 0 rgba(0, 255, 255, 0.25);
+
+    animation:
+        /*glyphShift 3.6s ease-in-out infinite,*/
+        holoShimmer 3.8s linear infinite;
+}
+
+.glyph-slot:hover {
+    animation: glyphShift 1.6s ease-in-out infinite;
+}
+
+.glyph-slot[style*="--glyph-ch: 0"] { color: var(--c0); }
+.glyph-slot[style*="--glyph-ch: 1"] { color: var(--c1); }
+.glyph-slot[style*="--glyph-ch: 2"] { color: var(--c2); }
+.glyph-slot[style*="--glyph-ch: 3"] { color: var(--c3); }
+.glyph-slot[style*="--glyph-ch: 4"] { color: var(--c4); }
+.glyph-slot[style*="--glyph-ch: 5"] { color: var(--c5); }
+.glyph-slot[style*="--glyph-ch: 6"] { color: var(--c6); }
+
+
+/* Channel 7 = static */
+.glyph-slot[style*="--glyph-ch: 7"] {
+    color: var(--c7);
+    animation: none;
+}
+
+@keyframes glyphShift {
+    0% {
+        color: #fff;
+    }
+    25% {
+        color: var(--from);
+    }
+    66% {
+        color: var(--to);
+    }
+    100% {
+        color: var(--from);
+    }
+}
+
+
+
+@keyframes channelShift {
+    0% {
+        background-position:
+            0% 0%,
+            100% 100%,
+            0% 50%;
+        filter: hue-rotate(0deg);
+    }
+
+    25% {
+        background-position:
+            50% 20%,
+            80% 40%,
+            50% 0%;
+    }
+
+    50% {
+        background-position:
+            100% 100%,
+            0% 0%,
+            100% 50%;
+        filter: hue-rotate(120deg);
+    }
+
+    75% {
+        background-position:
+            40% 80%,
+            20% 60%,
+            50% 100%;
+    }
+
+    100% {
+        background-position:
+            0% 0%,
+            100% 100%,
+            0% 50%;
+        filter: hue-rotate(360deg);
+    }
+}
+
+@keyframes channelPulse {
+    0% {
+        filter: brightness(0.9) contrast(1.05) saturate(1.1);
+    }
+    100% {
+        filter: brightness(1.15) contrast(1.25) saturate(1.4);
+    }
+}
+
+@keyframes holoShimmer {
+    0% {
+        text-shadow:
+            0 0 4px currentColor,
+            1px 0 rgba(255, 0, 255, 0.15),
+        -1px 0 rgba(0, 255, 255, 0.15);
+        opacity: 0.85;
+    }
+    50% {
+        text-shadow:
+            0 0 8px currentColor,
+            2px 0 rgba(255, 0, 255, 0.35),
+        -2px 0 rgba(0, 255, 255, 0.35);
+        opacity: 1;
+    }
+    100% {
+        text-shadow:
+            0 0 4px currentColor,
+            1px 0 rgba(255, 0, 255, 0.15),
+        -1px 0 rgba(0, 255, 255, 0.15);
+        opacity: 0.85;
+    }
+}
+
+
+
+
+/* ===== INNER DARK CORE ===== */
+.cell-inner {
+    background: #222;
+    flex: 1;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: 1%;
+    box-sizing: border-box;
+}
+
+/* ===== GLYPH BANDS ===== */
+.glyph-top,
+.glyph-bottom {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    width: 100%;
+}
+
+/* ===== CENTER ===== */
+.center {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.uuid {
+    color: #aaa;
+    font-size: clamp(16px, 1.4vmin, 20px);
+    text-shadow: 0 0 6px rgba(235, 235, 235, 0.6);
+}
+
+.owner { /* Includes iter number */
+    color: #aaa;
+    font-size: clamp(10px, 1vmin, 14px);
+    margin-top: 2px;
+}

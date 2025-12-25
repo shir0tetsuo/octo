@@ -235,7 +235,7 @@ async def render_provider(request: Request, payload: EntititesRequest, user_cont
 
                 # Index DB results by (x, y)
                 entity_map = {
-                    (ent["positionX"], ent["positionY"]): databases.normalize_entity(ent)
+                    (ent["positionX"], ent["positionY"]): databases.normalize_entity(ent, z)
                     for ent in data
                 }
 

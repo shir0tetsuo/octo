@@ -166,6 +166,19 @@ body {
     transition: .25s ease-in-out;
   }
 
+  .NavElement:hover {
+    background-color: rgba(223, 223, 223, 0.226);
+    color: rgb(121, 198, 233);
+    border-radius: 50%;
+    cursor: pointer;
+    height: 100%;
+    width: 100%;
+    z-index: 4;
+    -moz-transition: .25s ease-in-out;
+    -webkit-transition: .25s ease-in-out;
+    transition: .25s ease-in-out;
+  }
+
   .toppage {
     z-index: 1;
     position: fixed;
@@ -411,7 +424,7 @@ body {
     background-color: #212121;
     color: #565656;
     padding: 10px;
-    font-size: clamp(10px, 5vmin, 15px);
+    font-size: clamp(10px, 4vmin, 15px);
     text-align: center;
     padding: 5px 0;
     position: absolute;
