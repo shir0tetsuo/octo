@@ -169,7 +169,7 @@ body {
   .NavElement:hover {
     background-color: rgba(223, 223, 223, 0.226);
     color: rgb(121, 198, 233);
-    border-radius: 50%;
+    /*border-radius: 50%;*/
     cursor: pointer;
     height: 100%;
     width: 100%;

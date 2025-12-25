@@ -62,22 +62,20 @@ class ServerOkayResponse(BaseModel):
     version: str = versioning.distribution_version
     db_health: dict
 
-class ServerRenderResponse(BaseModel):
-    message: Literal['OK', 'ERROR']
-    x: list[int]
-    y: list[int]
-    entities: list[dict[str, Any]]
-    user_context: security.DecryptedToken
-    banner: list[str]
-
 class APIKeyCheckRequest(BaseModel):
     APIKey: str
 
 class EntititesRequest(BaseModel):
     x_axis: int
     y_axis: int
-    z_axis: Literal[0, 1, 2, 3, 4, 5, 6, 7]
+    z_axis: Literal[0, 1, 2, 3, 4, 5, 6, 7] # 8 Zones
     time_axis: float | None
+
+class EntityRequest(BaseModel):
+    x_pos: int
+    y_pos: int
+    zone: Literal[0, 1, 2, 3, 4, 5, 6, 7] # 8 Zones
+    iter: Optional[int]
 
 class KeyOkayResponse(BaseModel):
     valid_key: bool = False
@@ -194,12 +192,15 @@ async def general_key_check(payload: APIKeyCheckRequest):
     return KeyOkayResponse(valid_key=True)
 
 @server.post('/api/render')
-async def render_provider(request: Request, payload: EntititesRequest, user_context:security.DecryptedToken = Depends(APIKeyPresence)):
+async def render_provider(
+        request: Request, 
+        payload: EntititesRequest, 
+        user_context:security.DecryptedToken = Depends(APIKeyPresence)
+    ):
 
     # TODO : time axis not yet implemented
 
     client_host = request.client.host
-
     if not ratelimits.within_ip_rate_limit(client_ip=client_host):
         return ServerOkayResponse(
             message='ERROR',
@@ -250,8 +251,7 @@ async def render_provider(request: Request, payload: EntititesRequest, user_cont
                         row.append(ent)
                     result_grid.append(row)
 
-                # TODO : Commit genesis entities.
-                # TODO : Pydantic return class.
+                # TODO : Commit genesis entities. (Not on seen.)
                 return {
                     'message': 'OK',
                     'x': x,
@@ -273,7 +273,100 @@ async def render_provider(request: Request, payload: EntititesRequest, user_cont
             db_health={"message": "Database server unreachable"}
         )
 
-    return
+    return ServerOkayResponse(
+        message="ERROR",
+        db_health={"message": "Unexpected error."}
+    )
+
+@server.post('/api/render/one')
+async def provide_single_render(
+        request: Request, 
+        payload: EntityRequest, 
+        user_context:security.DecryptedToken = Depends(APIKeyPresence)
+    ):
+
+    client_host = request.client.host
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=15):
+        return ServerOkayResponse(
+            message='ERROR',
+            db_health={"message": "Rate Limit Exceeded"}
+        )
+    
+    _xpos=int(payload.x_pos)
+    _ypos=int(payload.y_pos)
+    _zone=int(payload.zone)
+    _iter=int(payload.iter)
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # TODO : ROUTE NOT BUILT YET
+            response = await client.post(
+                DB_SERVER + f"/expand",
+                headers={"X-API-Key": DB_KEY},
+                timeout=5.0,
+                json={
+                    'x': _xpos,
+                    'y': _ypos,
+                    'z': _zone,
+                    'i': _iter  # intended_iter
+                }
+            )
+
+            if response.status_code == status.HTTP_200_OK:
+
+                data = response.json()
+
+                entities = data["entities"]
+
+                entity_normals = {
+                    int(ent["iter"]): databases.normalize_entity(ent, _zone)
+                    for ent in entities
+                }
+
+                sorted_normals = dict(sorted(entity_normals.items()))
+                #iter_is_latest = data["is_latest_on_file"]
+
+                # NOTE : Commit Entity not done here.
+                return {
+                    'message': 'OK',
+                    'x': _xpos,
+                    'y': _ypos,
+                    'z': _zone,
+                    'entity': (
+                        { 
+                            0 : databases.entity_genesis(_xpos, _ypos, _zone) 
+                        }
+                        if not entity_normals else
+                        sorted_normals
+                    ),
+                    'intended_iter': data["intended_iter"],
+                    'iter_is_latest': data["is_latest_on_file"],
+                    'user_context': user_context,
+                    'banner': databases.ZONE_COLORS[_zone]
+                }
+            
+            else:
+                return ServerOkayResponse(
+                    message="ERROR",
+                    db_health={
+                        "message": "Unexpected error occurred.", 
+                        "status_code": response.status_code,
+                        "server_message": response.text
+                    }
+                )
+    
+    except httpx.ConnectError:
+        return ServerOkayResponse(
+            message="ERROR",
+            db_health={"message": "Database server unreachable"}
+        )
+    
+    return ServerOkayResponse(
+        message="ERROR",
+        db_health={"message": "Unexpected error occurred."}
+    )
+    
+    
 
 @server.get("/api/health", response_model=ServerOkayResponse)
 async def system_health_check():

@@ -19,9 +19,7 @@ def within_key_rate_limit(api_key):
     q.append(now)
     return True
 
-def within_ip_rate_limit(client_ip):
-    RATE = 25
-    WINDOW = 30
+def within_ip_rate_limit(client_ip, RATE = 25, WINDOW = 30):
     now = time.time()
     q = ip_buckets[client_ip]
 

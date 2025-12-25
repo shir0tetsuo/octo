@@ -115,8 +115,8 @@
 
             /* Navigate to Entity : Build the URL component, execute on click */
             function NavigateToEntity(entity) {
-                const xyz = encodeURIComponent(`${entity.positionX},${entity.positionY},${entity.positionZ}`)
-                window.location.href = `entity.html?xyz=`+xyz;
+                const xyzi = encodeURIComponent(`${entity.positionX},${entity.positionY},${entity.positionZ},${entity.iter}`)
+                window.location.href = `entity.html?xyzi=`+xyzi;
             }
 
             function buildCell(entity) {

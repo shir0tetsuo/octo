@@ -81,6 +81,12 @@ class RangeQuery(BaseModel):
     max_y: int
     limit: int = 1000
 
+class DBEntityRequest(BaseModel):
+    x: int
+    y: int
+    z: int
+    i: int
+
 @asynccontextmanager
 async def lifespan(server: FastAPI):
     global ZONES
@@ -152,6 +158,22 @@ async def get_latest_entity(zone: int, index: int):
     if not ent:
         raise HTTPException(status_code=404, detail="Entity not found")
     return ent
+
+@server.post("/expand", dependencies=[Depends(Authorization)])
+async def get_specific_location(payload: DBEntityRequest):
+    global ZONES
+    ThrowIf(payload.z not in ZONES, f"Invalid zone ID: {payload.z}", status.HTTP_400_BAD_REQUEST)
+
+    store = ZONES[payload.z]
+
+    return await store.get_iters_of_one(
+        payload.x, 
+        payload.y, 
+        payload.i+1 
+        # NOTE : If iter is lower (0) -> max is 0,
+        # should have another db function: Is latest iter? bool.
+        # This may change in the future, due to this note.
+    )
 
 @server.get("/get/{zone}/{index}/{iter}", dependencies=[Depends(Authorization)])
 async def get_specific_version(zone: int, index: int, iter: int):

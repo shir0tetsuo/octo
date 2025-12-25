@@ -10,6 +10,16 @@ Tired of fumbling with CSS for documentation? **Github Pages.**
 
 Too much read/write overhead of the same HTML/CSS/JS files? **Github Pages!**
 
+## Adding Zones
+
+You will be required to change:
+
+- static variables in `engine/databases.py`
+- references to zones size in JS nav limiters
+- pydantic references to literals
+
+See 34d8ccf, f546c6f
+
 ### Why would we want to separate the database API from the frontend API?
 
 Primarily because if the database is just a database, we can serve it over our network using a Raspberry Pi.

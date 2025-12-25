@@ -33,10 +33,10 @@ logger = logging.getLogger("db")
 
 ReadableTS = lambda ts : datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
 
-ZONE_INTEGER = list(range(0, 8))
+ZONE_INTEGER = list(range(0, 8)) # 8 Zones
 '''List int of Database, where last integer is n zones.'''
 
-ZONE_COLORS = {
+ZONE_COLORS = { # 8 Zones
     0 : [
         '#7489c9',        '#74c9c5',        '#74bcc9',        '#74abc9',
         '#749ac9',        '#7489c9',        '#7478c9',        '#8174c9',
@@ -106,7 +106,7 @@ ZONE_GLYPH_TABLES = {
         
 }
 
-ZONE_GLYPHS = {
+ZONE_GLYPHS = { # 8 Zones
     0 : [
         *ZONE_GLYPH_TABLES['birds']
     ],
@@ -488,6 +488,108 @@ class EntityStore(BaseStore):
             "minted": bool(row[10]),
             "timestamp": row[11]
         }
+    
+    async def get_iters_of_one(
+            self,
+            x: int,
+            y: int,
+            intended_iter: int | None = None,
+        ) -> dict:
+        """
+        Return all iterations <= intended_iter for all entities at (x, y).
+
+        - intended_iter=None → return everything (latest view)
+        - is_latest_on_file=True iff no iter > intended_iter exists
+        """
+
+        async with self._conn() as conn:
+
+            def _fetch():
+                iter_filter = "AND iter <= ?" if intended_iter is not None else ""
+
+                sql = f"""
+                    SELECT * FROM (
+                        -- Queue rows
+                        SELECT
+                            'queue' AS src,
+                            queue_id,
+                            'index', 'iter', uuid, state, name, description,
+                            positionX, positionY,
+                            aesthetics, ownership, minted, timestamp
+                        FROM write_queue
+                        WHERE positionX=? AND positionY=?
+                        {iter_filter}
+
+                        UNION ALL
+
+                        -- Persisted rows
+                        SELECT
+                            'table' AS src,
+                            NULL AS queue_id,
+                            'index', 'iter', uuid, state, name, description,
+                            positionX, positionY,
+                            aesthetics, ownership, minted, timestamp
+                        FROM entities
+                        WHERE positionX=? AND positionY=?
+                        {iter_filter}
+                    )
+                    ORDER BY 'index', 'iter' DESC
+                """
+
+                params: list[int] = [x, y]
+                if intended_iter is not None:
+                    params.append(intended_iter)
+
+                params.extend([x, y])
+                if intended_iter is not None:
+                    params.append(intended_iter)
+
+                rows = conn.execute(sql, tuple(params)).fetchall()
+
+                # True max iter on file (ignores intended_iter)
+                max_iter = conn.execute(
+                    """
+                    SELECT MAX(iter)
+                    FROM (
+                        SELECT iter FROM entities
+                        WHERE positionX=? AND positionY=?
+                        UNION ALL
+                        SELECT iter FROM write_queue
+                        WHERE positionX=? AND positionY=?
+                    )
+                    """,
+                    (x, y, x, y)
+                ).fetchone()[0]
+
+                return rows, max_iter
+
+            rows, max_iter = await anyio.to_thread.run_sync(_fetch)
+
+        entities: list[dict] = []
+
+        for r in rows:
+            data = self._row_to_dict(r[2:])
+            entities.append(data)
+
+            # Optional: seed LRU cache if you already use one
+            if hasattr(self, "_cache"):
+                cache_key = f"{data['index']}:{data['iter']}"
+                self._cache[cache_key] = data
+                self._cache.move_to_end(cache_key)
+
+        is_latest_on_file = (
+            intended_iter is None or
+            max_iter is None or
+            intended_iter >= max_iter
+        )
+
+        return {
+            "entities": entities,
+            "intended_iter": intended_iter,
+            "max_iter_on_file": max_iter,
+            "is_latest_on_file": is_latest_on_file,
+        }
+
 
     # CRUD Operations ───────────────────────────
     async def set(self, data: dict):
