@@ -8,13 +8,14 @@
             href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css"
             rel="stylesheet"
         />
+        <!-- favicon block -->
         <link rel="icon" type="image/png" sizes="512x512" href="favicon/android-chrome-512x512.png">
         <link rel="icon" type="image/png" sizes="192x192" href="favicon/android-chrome-192x192.png">
         <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
         <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
         <link rel="apple-touch-icon" href="favicon/apple-touch-icon.png">
         <link rel="alternate icon" href="favicon/favicon.ico">
-
+        <!-- jquery block -->
         <script src="js/jquery-3.7.1.js"></script>
 
         <link rel="stylesheet" href="css/map.css">
@@ -36,59 +37,25 @@
     <body>
         <div class="topnavigator">
             <div class="topleftbox">
-                <div class="floating-right" id="loading">
-                    <div class="bouncing-loader">
-                        <div></div>
-                        <div></div>
-                        <div></div>
-                    </div>
-                </div>
-                <div class="topnavleft">
-                    <a href="index.html">
-                        <i class="ri-base-station-fill"></i> status
-                    </a>
-                </div>
-                <div class="topnavleft">
-                    <a href="login.html?redirect=map.html" class="phasedBlue" id="user-login-nav">
-                        <i class="ri-passport-line"></i> login
-                    </a>
-                </div>
-                <div class="topnavleft">
-                    <a href="#" class="phasedYel">
-                        <i class="ri-treasure-map-line"></i> area
-                    </a>
-                </div>
-                <div class="topnavleft">
-                    <a href="#" class="phasedYel" id="x_minus">
-                        <i class="ri-arrow-left-circle-line"></i> X-
-                    </a>
-                </div>
-                <div class="topnavleft">
-                    <a href="#" class="phasedYel" id="x_plus">
-                        <i class="ri-arrow-right-circle-line"></i> X+
-                    </a>
-                </div>
-                <div class="topnavleft">
-                    <a href="#" class="phasedYel" id="y_minus">
-                        <i class="ri-arrow-down-circle-line"></i> Y-
-                    </a>
-                </div>
-                <div class="topnavleft">
-                    <a href="#" class="phasedYel" id="y_plus">
-                        <i class="ri-arrow-up-circle-line"></i> Y+
-                    </a>
-                </div>
-                <div class="topnavleft">
-                    <a href="#" class="phased">
-                        <i class="ri-compass-discover-line"></i> search
-                    </a>
-                </div>
+                <div class="floating-right" id="loading"><div class="bouncing-loader"><div></div><div></div><div></div></div></div>
+                
+                <!-- Common -->
+                <div class="topnavleft"><a href="index.html"><i class="ri-base-station-fill"></i> status</a></div>
+                <div class="topnavleft"><a href="login.html?redirect=map.html" class="phasedBlue" id="user-login-nav"><i class="ri-passport-line"></i> login</a></div>
+                <!-- Map View Navigation -->
+                <div class="topnavleft"><a href="#" class="phasedYel"><i class="ri-treasure-map-line"></i> area</a></div>
+                <div class="topnavleft"><a href="#" class="phasedYel" id="x_minus"><i class="ri-arrow-left-circle-line"></i> X-</a></div>
+                <div class="topnavleft"><a href="#" class="phasedYel" id="x_plus"><i class="ri-arrow-right-circle-line"></i> X+</a></div>
+                <div class="topnavleft"><a href="#" class="phasedYel" id="y_minus"><i class="ri-arrow-down-circle-line"></i> Y-</a></div>
+                <div class="topnavleft"><a href="#" class="phasedYel" id="y_plus"><i class="ri-arrow-up-circle-line"></i> Y+</a></div>
+                <div class="topnavleft"><a href="#" class="phased"><i class="ri-compass-discover-line"></i> search</a></div> <!-- Currently Unused -->
 
                 <div class="skeleton-image" id="skeletonloading"></div>
             </div>
         </div>
+
         <div class="container" id="grid">
-            <!-- TODO : Content, Loading -->
+            <!-- Content -->
         </div>
 
 
@@ -330,14 +297,9 @@
 
             function illuminate(res) {
                 b = shuffle(res.banner);
-                document.documentElement.style.setProperty('--banner-channel-0', b[0]);
-                document.documentElement.style.setProperty('--banner-channel-1', b[1]);
-                document.documentElement.style.setProperty('--banner-channel-2', b[2]);
-                document.documentElement.style.setProperty('--banner-channel-3', b[3]);
-                document.documentElement.style.setProperty('--banner-channel-4', b[4]);
-                document.documentElement.style.setProperty('--banner-channel-5', b[5]);
-                document.documentElement.style.setProperty('--banner-channel-6', b[6]);
-                document.documentElement.style.setProperty('--banner-channel-7', b[7]);
+                b.forEach((value, i) => {
+                    document.documentElement.style.setProperty(`--banner-channel-${i}`, value);
+                });
             }
 
             function ChangeUserNav(res) {

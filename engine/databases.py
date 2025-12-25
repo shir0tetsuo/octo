@@ -155,7 +155,7 @@ def DeterministicAesthetic(
     rng = _deterministic_rng(x, y, z)
     # rng.randint(0,3), rng.choice([1,2,3]), noise=rng.random()
     
-    # TODO : Hieroglyphs
+    # NOTE : Zone colors, hieroglyphs are set based on random of ALL x;
     return {
         'bar' : {
             f'channel_{i}' : rng.choice(ZONE_COLORS[z])
