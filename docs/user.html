@@ -42,10 +42,16 @@
             </div>
             <div id="noshow" style="display: none;">
                 <form action="javascript:void(0)" novalidate>
-                    <h2>Nothing here</h2>
+                    <h2 id="user_id"></h2>
+
+                    <div style="width: 100%; text-align: center; font-size: clamp(16px, 1.4vmin, 20px);" id="uuid"></div>
                     <br>
-                    You find yourself somewhere unfamiliar.
+                    Account Age: <x id="days_old_value">--</x> / 365
+                    <div class="progressbar"><div id="days_old"></div></div>
+                    <br>
+                    <!-- Currently executes nothing -->
                     <button type="submit" class="btnn">Renew API Key</button>
+
                     <div class="button">
                     <a href="https://github.com/shir0tetsuo/octo"> <i class="ri-github-line"></i> Project Page </a>
                     --
@@ -118,10 +124,29 @@
             safeRedirect();
         }
 
+        // main
         function handleSuccess(response) {
             console.log('Server responds with data.')
             console.log(response)
             if ( !response?.decryption_success) { safeExit(); };
+
+            // Render UUID
+            const uuid_element = document.getElementById("uuid");
+            const id_element = document.getElementById("user_id");
+            const id_short = response?.ID.split('-')[0];
+            id_element.innerText = id_short;
+            uuid_element.innerHTML = response?.ID || 'Unknown/Error';
+            // Render progress bar for account age
+            const days_element = document.getElementById("days_old");
+            const days_old_actual = response?.days_old || 0;
+            const days_v = document.getElementById("days_old_value");
+            days_v.innerText = days_old_actual;
+            const percent_old = Math.floor(days_old_actual * 0.273972602739726); // (365 Days)
+            days_element.style.setProperty('--progresspercent', `${percent_old}%`);
+            days_element.style.setProperty('--xch0', '#ff0000');
+            days_element.style.setProperty('--xch1', '#2d2d2d');
+            days_element.className = 'prog';
+
             reveal_content()
         }
 
@@ -144,7 +169,6 @@
                             safeExit();
                         });
                 });
-
 
         });
     </script>
