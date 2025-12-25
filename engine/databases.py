@@ -69,9 +69,9 @@ ZONE_COLORS = { # 8 Zones
         '#7C17F4'
     ],
     6 : [
-        '#3C0325',        '#5F1036',        '#8B1742', 
-        '#BC1756',        '#E62D6A',        '#FF417F',
-        '#FF6E97',        '#FFA9B8',        '#FFD3D9'
+        "#3C1003",        "#5F2D10",        "#8B4117", 
+        "#BC7A17",        "#E6582D",        "#FF7741",
+        "#FF906E",        "#FFA9A9",        '#FFD3D9'
     ],
     7 : [
         '#98dadb',        '#98c8e5',        '#98b6ee',        '#a5ade7',
@@ -80,7 +80,7 @@ ZONE_COLORS = { # 8 Zones
     ]
 }
 
-ZONE_GLYPH_TABLES = {
+ZONE_GLYPH_TABLES = { # 8 Zones, but (this is spread "evenly" among the zones. Keep that in mind.)
     'birds': [
         '𓄿','𓅀','𓅱','𓅷','𓅾','𓅟','𓅮','𓅙','𓅰','𓅚',
         '𓅞','𓅪','𓅜','𓅛','𓅘','𓅓','𓅔','𓅃','𓅂'

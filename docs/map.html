@@ -18,9 +18,9 @@
         <!-- jquery block -->
         <script src="js/jquery-3.7.1.js"></script>
 
+        <link rel="stylesheet" href="css/common.css">
         <link rel="stylesheet" href="css/map.css">
         <link rel="stylesheet" href="css/map_elements.css">
-        <link rel="stylesheet" href="css/common.css">
 
         <!-- Bots No Index No Follow -->
         <meta name="ROBOTS" content="NOINDEX,NOFOLLOW">
@@ -82,8 +82,14 @@
 
             /* Navigate to Entity : Build the URL component, execute on click */
             function NavigateToEntity(entity) {
-                const xyzi = encodeURIComponent(`${entity.positionX},${entity.positionY},${entity.positionZ},${entity.iter}`)
-                window.location.href = `entity.html?xyzi=`+xyzi;
+                const xyzi = encodeURIComponent(`${entity.positionX},${entity.positionY},${entity.positionZ},${entity.iter}`);
+                function handleSuccess(response) {
+                    console.log('Server responds with data.')
+                    console.log(response)
+                    if ( !response?.valid_key) { safeExit(); };
+                }
+                redirect = encodeURIComponent(window.location.pathname + window.location.search);
+                window.location.href = `entity.html?xyzi=`+xyzi+`&redirect=${redirect}`;
             }
 
             function buildCell(entity) {
@@ -346,7 +352,7 @@
                 .fail(function () {
                     // fallback
                     console.warn("Couldn't establish DNS connection, falling back to localhost.")
-                    RenderFactory("http://localhost:9300/api/render", xpos, ypos, zone)
+                    RenderFactory("http://localhost:9300/api/render", xpos, ypos, zone, apiKey)
                     .done(function (res) {
                         console.log(res)
                         if (res.message == "OK") {

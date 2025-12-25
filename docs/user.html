@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        
+        <title>User</title>
+        <!-- https://remixicon.com/ -->
+        <link
+            href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css"
+            rel="stylesheet"
+        />
+        <link rel="icon" type="image/png" sizes="512x512" href="favicon/android-chrome-512x512.png">
+        <link rel="icon" type="image/png" sizes="192x192" href="favicon/android-chrome-192x192.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+        <link rel="apple-touch-icon" href="favicon/apple-touch-icon.png">
+        <link rel="alternate icon" href="favicon/favicon.ico">
+
+        <script src="js/jquery-3.7.1.js"></script>
+
+        <link rel="stylesheet" href="./css/common.css">
+        <link rel="stylesheet" href="./css/login.css">
+
+        <!-- Bots No Index No Follow -->
+        <meta name="ROBOTS" content="NOINDEX,NOFOLLOW">
+
+        <!-- For mobile support -->
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <meta name="theme-color" content="#3da79a">
+        <meta property="og:site_name" content="Octo Application">
+        <meta property="og:image" content="./img/about-bg.gif">
+        <meta data-react-helmet="true" property="og:description" content="Lightweight repository project interacts with API Servers for a simple Data Library">    
+
+    </head>
+    <body>
+        <div class="content">
+        <form action="javascript:void(0)" novalidate>
+            <h2>Nothing here</h2>
+            <br>
+            You find yourself somewhere unfamiliar.
+            <button type="submit" class="btnn">Renew API Key</button>
+            <div class="button">
+            <a href="https://github.com/shir0tetsuo/octo"> <i class="ri-github-line"></i> Project Page </a>
+            --
+            <a href="./index.html"> <i class="ri-cloud-fill"></i> Status</a>
+            </div>
+        </form>
+        </div>
+
+    </body>
+    <script type="text/javascript">
+        function safeRedirect(path) {
+            if (path && path.startsWith("/") && !path.startsWith("//")) {
+                window.location.href = path;
+            } else {
+                window.location.href = "./index.html";
+            }
+        }
+
+        function launch_error_toast(error_text) {
+            var t = document.getElementById("error_toast")
+            var d = document.getElementById("error_desc")
+            t.className = "show";
+            d.innerText = error_text;
+            setTimeout(function(){ t.className = t.className.replace("show", ""); }, 5000);
+        }
+
+        // Do not remove.
+        function setCookie(name, value, days) {
+            let expires = "";
+            if (days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            const isHttps = location.protocol === "https:";
+            document.cookie =
+                name + "=" + encodeURIComponent(value) +
+                expires +
+                "; path=/; SameSite=Strict" +
+                (isHttps ? "; Secure" : "");
+        }
+
+        function checkKey(url, apiKey) {
+            return $.ajax({
+                type: "POST",
+                url: url,
+                timeout: 2000,
+                contentType: "application/json",
+                dataType: "json",
+                data: JSON.stringify({ APIKey: apiKey })
+            });
+        }
+
+        function getApiKeyFromCookie() {
+            const match = document.cookie.match(/(?:^|; )X-API-Key=([^;]*)/);
+            return match ? decodeURIComponent(match[1]) : null;
+        }
+
+        function safeExit() {
+            const params = new URLSearchParams(window.location.search);
+            const redirectTo = params.get("redirect") || "./index.html";
+            safeRedirect();
+        }
+
+        function handleSuccess(response) {
+            console.log('Server responds with data.')
+            console.log(response)
+            if ( !response?.valid_key) { safeExit(); };
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const apiKey = getApiKeyFromCookie()
+            if (!apiKey) {
+                return safeExit();
+            }
+
+            form.addEventListener("DOMContentLoaded", function () {
+
+                checkKey("https://octo.shadowsword.ca/api/CheckAPIKey", apiKey)
+                    .done(handleSuccess)
+                    .fail(function () {
+                        console.warn("Couldn't establish DNS connection, falling back to localhost.")
+                        checkKey("http://localhost:9300/api/CheckAPIKey", apiKey)
+                            .done(handleSuccess)
+                            .fail(function () {
+                                // force exit if invalid key
+                                safeExit();
+                            });
+                    });
+
+            });
+        });
+    </script>
+    <div id="error_toast"><div id="icon"><i class="ri-signal-wifi-error-line"></i></div><div id="error_desc"></div></div>
+
+
+</html>
