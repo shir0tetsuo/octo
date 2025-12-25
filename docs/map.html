@@ -311,7 +311,8 @@
             function ChangeUserNav(res) {
                 nav = document.getElementById('user-login-nav');
                 if (res.user_context.decryption_success) {
-                    nav.href = 'user.html'; // This will point to the user page
+                    redirect = encodeURIComponent(window.location.pathname + window.location.search);
+                    nav.href = 'user.html?redirect=' + redirect; // This will point to the user page
                     nav.innerHTML = '<i class="ri-passport-fill"></i> ' + String(res.user_context.ID).split('-')[0];
                 } else {
                     nav.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
