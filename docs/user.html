@@ -207,7 +207,8 @@
             const days_old_actual = response?.days_old || 0;
             const days_v = document.getElementById("days_old_value");
             days_v.innerText = days_old_actual;
-            const percent_old = Math.floor(days_old_actual * 0.273972602739726); // (365 Days)
+            var percent_old = Math.floor(days_old_actual * 0.273972602739726); // (365 Days)
+            if (percent_old > 100) { percent_old = 100 }
             days_element.style.setProperty('--progresspercent', `${percent_old}%`);
             days_element.style.setProperty('--xch0', '#ff0000');
             days_element.style.setProperty('--xch1', '#2d2d2d');
