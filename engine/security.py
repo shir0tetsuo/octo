@@ -46,9 +46,14 @@ def read_private_key(key_storage_file:Path, lock=threading.RLock()):
         
     return private_key
 
-def create_api_key(*token_data, key_storage_file:Path, ID:Optional[str]=str(uuid.uuid4()), lock=threading.RLock()):
+def create_api_key(
+        *token_data, 
+        key_storage_file:Path, 
+        ID:Optional[str]=str(uuid.uuid4()), 
+        ts = datetime.now().isoformat(timespec="seconds"),
+        lock=threading.RLock()
+    ):
     private_key = read_private_key(key_storage_file, lock)
-    ts = datetime.now().isoformat(timespec="seconds")
     return base64.urlsafe_b64encode( NewCipherBlob( NewToken( *token_data, ID, ts ), private_key, os.urandom(12) ) )
 
 def decrypt_api_key(b64_cipher, key_storage_file:Path, lock=threading.RLock()):

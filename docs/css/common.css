@@ -260,4 +260,5 @@
   background: linear-gradient(74deg, var(--xch0) 0, var(--xch0) 80%, var(--xch1) 100%); 
   height: 100%; 
   float: left;
+  transition: 1000ms;
 }

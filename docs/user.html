@@ -46,7 +46,7 @@
 
                     <div style="width: 100%; text-align: center; font-size: clamp(16px, 1.4vmin, 20px);" id="uuid"></div>
                     <br>
-                    Account Age: <x id="days_old_value">--</x> / 365
+                    Account Age: <x id="days_old_value">--</x> / 365 Days
                     <div class="progressbar"><div id="days_old"></div></div>
                     <br>
                     <div class="remember">
@@ -185,6 +185,11 @@
                 keyArea.innerText = response.api_key;
                 const HiddenKeyArea = document.getElementById("hidden-newkey")
                 HiddenKeyArea.style.setProperty('display', 'block');
+                const days_v = document.getElementById("days_old_value");
+                days_v.innerHTML = "0"
+                launch_toast("Renewed successfully.")
+                const days_element = document.getElementById("days_old");
+                days_element.style.setProperty('--progresspercent', `0%`);
             } else {
                 launch_error_toast("Unexpected Error.");
             }
@@ -192,7 +197,6 @@
 
         // main
         function handleSuccess(response) {
-            console.log('Server responds with data.')
             console.log(response)
             if ( !response?.decryption_success) { safeExit(); };
 
@@ -206,7 +210,7 @@
             const days_element = document.getElementById("days_old");
             const days_old_actual = response?.days_old || 0;
             const days_v = document.getElementById("days_old_value");
-            days_v.innerText = days_old_actual;
+            days_v.innerText = days_old_actual; // days value
             var percent_old = Math.floor(days_old_actual * 0.273972602739726); // (365 Days)
             if (percent_old > 100) { percent_old = 100 }
             days_element.style.setProperty('--progresspercent', `${percent_old}%`);
