@@ -47,7 +47,6 @@ body {
     font-size: x-small;
   }
 
-  /* TODO : Display banner colors with CSS injection, animate */
   .topnavigator {
     min-height: 30px;
     padding: 10px;

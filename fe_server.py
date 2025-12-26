@@ -141,10 +141,6 @@ def Authorization(api_key = Depends(strict_api_key_header)) -> security.Decrypte
     
     return decrypted
 
-# NOTE : This segment is new, doesn't work as intended.
-# TODO : Debug why cookie is not seen by server.
-#        Could bypass by passing it directly in the request.
-
 nil_account = security.DecryptedToken(
     decryption_success=False,
     data=[],
@@ -382,7 +378,6 @@ async def provide_single_render(
 
     try:
         async with httpx.AsyncClient() as client:
-            # TODO : ROUTE NOT BUILT YET
             response = await client.post(
                 DB_SERVER + f"/expand",
                 headers={"X-API-Key": DB_KEY},
