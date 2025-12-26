@@ -62,6 +62,7 @@
                     <a href="https://github.com/shir0tetsuo/octo"> <i class="ri-github-line"></i> Project Page </a>
                     <a href="./index.html"> <i class="ri-cloud-fill"></i> Status</a>
                     <br>
+                    <a href="#" onclick="logout()"><i class="ri-logout-box-line"></i> Logout</a>
                     <a href="#" onclick="safeExit()"><i class="ri-corner-down-left-fill"></i> Return</a>
                 </div>
             </div>
@@ -146,7 +147,16 @@
             const redirectTo = params.get("redirect") || "./index.html";
             safeRedirect(redirectTo);
         };
+
+        function deleteCookie(name) {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        }
         
+        function logout() {
+            deleteCookie('X-API-Key')
+            safeRedirect()
+        }
+
         function setCookie(name, value, days) {
             let expires = "";
             if (days) {
