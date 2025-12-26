@@ -236,6 +236,14 @@
             })
         }
 
+        function launch_error_toast(error_text) {
+            var t = document.getElementById("error_toast")
+            var d = document.getElementById("error_desc")
+            t.className = "show";
+            d.innerText = error_text;
+            setTimeout(function(){ t.className = t.className.replace("show", ""); }, 5000);
+        }
+
         function getApiKeyFromCookie() {
             const match = document.cookie.match(/(?:^|; )X-API-Key=([^;]*)/);
             return match ? decodeURIComponent(match[1]) : null;
@@ -263,45 +271,59 @@
             RenderFactory("https://octo.shadowsword.ca/api/render/areas", toLoad, apiKey)
             .done(function (res) {
                 console.log(res)
-                populateGrid(res)
-                ChangeUserNav(res)
-                toggleLoadingBar(false)
-                toggleLoadingBar(false, 'skeletonloading')
-                illuminate([
-                    '#1F1A2B',        '#211735',        '#250F46',
-                    '#362A55',        '#4F3A87',        '#5828A6',
-                    '#5F10B8',        '#7434E0',        '#782AEA',
-                    '#7C17F4',        '#732ff6',        '#7657eb',
-                    '#7972df',        '#7e89d2',        '#849dc4',
-                    '#8bb1b3',        '#93c3a0',        '#9cd488',
-                    '#a5e569',        '#aff631'
-                ])
+                if (res?.entities) {
+                    populateGrid(res)
+                    ChangeUserNav(res)
+                    toggleLoadingBar(false)
+                    toggleLoadingBar(false, 'skeletonloading')
+                    illuminate([
+                        '#1F1A2B',        '#211735',        '#250F46',
+                        '#362A55',        '#4F3A87',        '#5828A6',
+                        '#5F10B8',        '#7434E0',        '#782AEA',
+                        '#7C17F4',        '#732ff6',        '#7657eb',
+                        '#7972df',        '#7e89d2',        '#849dc4',
+                        '#8bb1b3',        '#93c3a0',        '#9cd488',
+                        '#a5e569',        '#aff631'
+                    ])
+                } else {
+                    toggleLoadingBar(false)
+                    launch_error_toast(res?.db_health?.message || "Unexpected error occurred.")
+                }
             })
             .fail(function () {
                 console.warn("Couldn't establish DNS connection, falling back to localhost.")
                 RenderFactory("http://localhost:9300/api/render/areas", toLoad, apiKey)
                 .done(function (res) {
                     console.log(res)
-                    populateGrid(res)
-                    ChangeUserNav(res)
-                    toggleLoadingBar(false)
-                    toggleLoadingBar(false, 'skeletonloading')
-                    illuminate([
-                        '#7489c9',
-                        '#375c67',
-                        '#34b768',
-                        '#732ff6',
-                        '#aff631',
-                        '#cea34c',
-                        '#7C17F4',
-                        "#FF906E"
-                    ])
+                    if (res?.entities) {
+                        populateGrid(res)
+                        ChangeUserNav(res)
+                        toggleLoadingBar(false)
+                        toggleLoadingBar(false, 'skeletonloading')
+                        illuminate([
+                            '#7489c9',
+                            '#375c67',
+                            '#34b768',
+                            '#732ff6',
+                            '#aff631',
+                            '#cea34c',
+                            '#7C17F4',
+                            "#FF906E"
+                        ])
+                    } else {
+                        toggleLoadingBar(false)
+                        launch_error_toast(res?.db_health?.message || "Unexpected error occurred.")
+                    }
+
                 })
                 .fail(function () {
-                    console.warn('Error.')
+                    toggleLoadingBar(false)
+                    launch_error_toast("Cannot establish server connection.")
                 })
             })
         })
     </script>
+
+    <div id="error_toast"><div id="icon"><i class="ri-signal-wifi-error-line"></i></div><div id="error_desc"></div></div>
     </body>
 </html>

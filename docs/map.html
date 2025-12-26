@@ -342,6 +342,7 @@
                 RenderFactory("https://octo.shadowsword.ca/api/render", xpos, ypos, zone, apiKey)
                 .done(function (res) {
                     console.log(res)
+                    console.log('sdq')
                     if (res.message == "OK") {
                         illuminate(res)
                         ChangeUserNav(res)
@@ -349,6 +350,9 @@
                         populateGrid(res.entities)
                         toggleLoadingBar(false)
                         toggleLoadingBar(false, 'skeletonloading')
+                    } else if (res.message == "ERROR") {
+                        toggleLoadingBar(false)
+                        launch_error_toast(res?.db_health?.message || "Unexpected error occurred.")
                     }
                     
                 })
@@ -358,6 +362,7 @@
                     RenderFactory("http://localhost:9300/api/render", xpos, ypos, zone, apiKey)
                     .done(function (res) {
                         console.log(res)
+                        console.log('ldq')
                         if (res.message == "OK") {
                             illuminate(res)
                             ChangeUserNav(res)
@@ -365,8 +370,10 @@
                             populateGrid(res.entities)
                             toggleLoadingBar(false)
                             toggleLoadingBar(false, 'skeletonloading')
+                        } else if (res.message == "ERROR") {
+                            toggleLoadingBar(false)
+                            launch_error_toast(res?.db_health?.message || "Unexpected error occurred.")
                         }
-                        
                     })
                     .fail(function () {
                         // Cannot load page, display Error Message
