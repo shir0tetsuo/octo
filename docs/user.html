@@ -208,7 +208,7 @@
         // main
         function handleSuccess(response) {
             console.log(response)
-            if ( !response?.decryption_success) { safeExit(); };
+            if ( !response?.decryption_success) { logout(); };
 
             // Render UUID
             const uuid_element = document.getElementById("uuid");
