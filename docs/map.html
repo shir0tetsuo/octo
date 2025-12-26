@@ -43,7 +43,7 @@
                 <div class="topnavleft"><a href="index.html"><i class="ri-base-station-fill"></i> status</a></div>
                 <div class="topnavleft"><a href="login.html?redirect=map.html" class="phasedBlue" id="user-login-nav"><i class="ri-passport-line"></i> login</a></div>
                 <!-- Map View Navigation -->
-                <div class="topnavleft"><a href="#" class="phasedYel"><i class="ri-treasure-map-line"></i> area</a></div>
+                <div class="topnavleft"><a href="#" class="phasedYel" id="area-nav"><i class="ri-treasure-map-line"></i> area</a></div>
                 <div class="topnavleft"><a href="#" class="phasedYel" id="x_minus"><i class="ri-arrow-left-circle-line"></i> X-</a></div>
                 <div class="topnavleft"><a href="#" class="phasedYel" id="x_plus"><i class="ri-arrow-right-circle-line"></i> X+</a></div>
                 <div class="topnavleft"><a href="#" class="phasedYel" id="y_minus"><i class="ri-arrow-down-circle-line"></i> Y-</a></div>
@@ -83,12 +83,7 @@
             /* Navigate to Entity : Build the URL component, execute on click */
             function NavigateToEntity(entity) {
                 const xyzi = encodeURIComponent(`${entity.positionX},${entity.positionY},${entity.positionZ},${entity.iter}`);
-                function handleSuccess(response) {
-                    console.log('Server responds with data.')
-                    console.log(response)
-                    if ( !response?.valid_key) { safeExit(); };
-                }
-                redirect = encodeURIComponent(window.location.pathname + window.location.search);
+                const redirect = encodeURIComponent(window.location.pathname + window.location.search);
                 window.location.href = `entity.html?xyzi=`+xyzi+`&redirect=${redirect}`;
             }
 
@@ -319,6 +314,12 @@
                 }
             }
 
+            function ChangeAreaNav() {
+                nav = document.getElementById('area-nav');
+                redirect = encodeURIComponent(window.location.pathname + window.location.search);
+                nav.href = 'area.html?redirect=' + redirect; // This will point to the user page
+            }
+
             document.addEventListener("DOMContentLoaded", function () {
 
                 // Get params from location
@@ -344,6 +345,7 @@
                     if (res.message == "OK") {
                         illuminate(res)
                         ChangeUserNav(res)
+                        ChangeAreaNav()
                         populateGrid(res.entities)
                         toggleLoadingBar(false)
                         toggleLoadingBar(false, 'skeletonloading')
@@ -359,6 +361,7 @@
                         if (res.message == "OK") {
                             illuminate(res)
                             ChangeUserNav(res)
+                            ChangeAreaNav()
                             populateGrid(res.entities)
                             toggleLoadingBar(false)
                             toggleLoadingBar(false, 'skeletonloading')

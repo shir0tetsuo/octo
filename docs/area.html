@@ -35,6 +35,19 @@
 
     </head>
     <body>
+        <div class="topnavigator">
+            <div class="topleftbox">
+                <div class="floating-right" id="loading"><div class="bouncing-loader"><div></div><div></div><div></div></div></div>
+                
+                <!-- Common -->
+                <div class="topnavleft"><a href="index.html"><i class="ri-base-station-fill"></i> status</a></div>
+                <div class="topnavleft"><a href="login.html?redirect=area.html" class="phasedBlue" id="user-login-nav"><i class="ri-passport-line"></i> login</a></div>
+                <div class="topnavleft"><a href="#" class="phasedYel" onclick="safeExit()"><i class="ri-corner-down-left-fill"></i> Return</a></div>
+                <div class="topnavleft"><a href="#" class="phased"><i class="ri-compass-discover-line"></i> search</a></div> <!-- Currently Unused -->
+
+                <div class="skeleton-image" id="skeletonloading"></div>
+            </div>
+        </div>
         <div class="container" id="grid">
             <!-- Content -->
         </div>
@@ -42,13 +55,171 @@
     <script type="text/javascript">
         const grid = document.getElementById("grid");
 
+        function safeRedirect(path) {
+            if (path && path.startsWith("/") && !path.startsWith("//")) {
+                window.location.href = path;
+            } else {
+                window.location.href = "./index.html";
+            }
+        };
+
+        function safeExit() {
+            const params = new URLSearchParams(window.location.search);
+            const redirectTo = params.get("redirect") || "./index.html";
+            safeRedirect(redirectTo);
+        };
+        
+        function ChangeUserNav(res) {
+            nav = document.getElementById('user-login-nav');
+            if (res.user_context.decryption_success) {
+                redirect = encodeURIComponent(window.location.pathname + window.location.search);
+                nav.href = 'user.html?redirect=' + redirect; // This will point to the user page
+                nav.innerHTML = '<i class="ri-passport-fill"></i> ' + String(res.user_context.ID).split('-')[0];
+            } else {
+                nav.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+            }
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function illuminate(colors) {
+            b = shuffle(colors);
+            b.forEach((value, i) => {
+                document.documentElement.style.setProperty(`--banner-channel-${i}`, value);
+            });
+        }
+
+        function applyChannelAnimation(pad, bar) {
+            if (!bar || typeof bar !== "object") return;
+
+            const channels = Object.values(bar); // channel_0 → channel_7
+
+            channels.forEach((c, i) => {
+                pad.style.setProperty(`--c${i}`, c);
+            });
+
+            // First 4 drive the background animation
+            for (let i = 0; i < 4; i++) {
+                pad.style.setProperty(`--ch-${i}`, channels[i % channels.length]);
+            }
+        }
+
+        /* Navigate to Entity : Build the URL component, execute on click */
+        function NavigateToEntity(entity) {
+            const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = `map.html?x=`+entity.repr.x+`&y=`+entity.repr.y+'&z='+entity.positionZ+'&redirect='+redirect;
+        }
+        
+        function toggleLoadingBar(force, loadingID='loading') {
+            const loading = document.getElementById(loadingID);
+
+            if (force !== undefined) {
+                // If force is provided, explicitly set display
+                loading.style.display = force ? 'block' : 'none';
+            } else {
+                // Otherwise, toggle
+                loading.style.display = (loading.style.display === 'none') ? 'block' : 'none';
+            }
+        }
+
+        function buildCell(entity) {
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            cell.dataset.state = entity.state ?? 0;
+
+            const pad = document.createElement("div");
+            pad.className = "cell-pad";
+
+            // ✅ correct channel handling
+            applyChannelAnimation(pad, entity.aesthetics?.bar);
+
+            const seed = parseInt(entity.uuid?.replace(/-/g, "").slice(0, 6), 16) || 0;
+            pad.style.animationDelay = `${-(seed % 1200) / 100}s`;
+
+            const inner = document.createElement("div");
+            inner.className = "cell-inner";
+
+            const top = document.createElement("div");
+            top.className = "glyph-top";
+
+            const bottom = document.createElement("div");
+            bottom.className = "glyph-bottom";
+
+            const glyphs = Object.values(entity.aesthetics?.glyphs || {});
+            glyphs.slice(0, 8).forEach((g, i) => {
+                const d = document.createElement("div");
+                d.className = "glyph-slot";
+                if (i == 7) {
+                    d.style=("cursor: pointer");
+                    d.className = "glyph-slot NavElement"
+                    d.onclick = () => NavigateToEntity(entity);
+                }
+                d.textContent = g;
+
+                d.style.setProperty("--glyph-ch", i);
+                d.style.animationDelay = `${i * 0.2}s`;
+
+                if (i < 4) top.appendChild(d);
+                else bottom.appendChild(d);
+            });
+
+            const center = document.createElement("div");
+            center.className = "center extrusionbase";
+
+            const uuid = document.createElement("div");
+            uuid.className = "uuid";
+            uuid.textContent = `${entity.uuid.slice(0, 8)} --`;
+
+            const owner = document.createElement("div");
+            owner.className = "owner";
+            owner.textContent = `x${entity.repr.x},y${entity.repr.y},z${entity.positionZ}`
+
+            // extrusion tooltip with hidden timestamp
+            const extrusion = document.createElement("div");
+            extrusion.className = "extrude";
+
+            const display = document.createElement("div");
+            //display.href = "#";
+            display.textContent = `${entity.repr.s}`;
+            extrusion.appendChild(display);
+
+            const channels = Object.values(entity.aesthetics?.bar);
+            const CellBar = document.createElement("div");
+            CellBar.className = "cell-bar";
+
+            channels.forEach((c, i) => {
+                const next = channels[(i + 1) % channels.length];
+                const BarEl = document.createElement("div");
+                BarEl.style.setProperty(`--xch0`, c)
+                BarEl.style.setProperty(`--xch1`, next)
+                BarEl.className = "bar-el";
+                CellBar.append(BarEl)
+            })
+            extrusion.append(CellBar);
+
+            //requestAnimationFrame(updateExtrusion);
+
+            center.append(uuid, owner, extrusion);
+            inner.append(top, center, bottom);
+            pad.append(inner);
+            cell.append(pad);
+
+            return cell;
+        }
+
+
         function populateGrid(response) {
             grid.innerHTML = "";
 
             if (response?.entities) {
                 for (let e = 0; e < response.entities.length; e++) {
-                    
-                    console.log(response.entities[e])
+                    grid.appendChild(buildCell(response.entities[e]))
                 }
             }
         }
@@ -73,6 +244,7 @@
         document.addEventListener("DOMContentLoaded", function () {
             const apiKey = getApiKeyFromCookie();
 
+            // Areas of interest are defined here.
             const toLoad = [
                 "0,0,0,Main Area",
                 "0,0,1,Main Area",
@@ -82,13 +254,28 @@
                 "0,0,5,Main Area",
                 "0,0,6,Main Area",
                 "0,0,7,Main Area",
-                "64,64,5,Sacred Area"
+                "64,64,5,Sacred Area",
+                "64,64,4,Sacred Area",
+                "64,64,1,Sacred Area",
+                "2,6,2,Temple of Snakes"
             ]
 
             RenderFactory("https://octo.shadowsword.ca/api/render/areas", toLoad, apiKey)
             .done(function (res) {
                 console.log(res)
                 populateGrid(res)
+                ChangeUserNav(res)
+                toggleLoadingBar(false)
+                toggleLoadingBar(false, 'skeletonloading')
+                illuminate([
+                    '#1F1A2B',        '#211735',        '#250F46',
+                    '#362A55',        '#4F3A87',        '#5828A6',
+                    '#5F10B8',        '#7434E0',        '#782AEA',
+                    '#7C17F4',        '#732ff6',        '#7657eb',
+                    '#7972df',        '#7e89d2',        '#849dc4',
+                    '#8bb1b3',        '#93c3a0',        '#9cd488',
+                    '#a5e569',        '#aff631'
+                ])
             })
             .fail(function () {
                 console.warn("Couldn't establish DNS connection, falling back to localhost.")
@@ -96,6 +283,19 @@
                 .done(function (res) {
                     console.log(res)
                     populateGrid(res)
+                    ChangeUserNav(res)
+                    toggleLoadingBar(false)
+                    toggleLoadingBar(false, 'skeletonloading')
+                    illuminate([
+                        '#7489c9',
+                        '#375c67',
+                        '#34b768',
+                        '#732ff6',
+                        '#aff631',
+                        '#cea34c',
+                        '#7C17F4',
+                        "#FF906E"
+                    ])
                 })
                 .fail(function () {
                     console.warn('Error.')
