@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+        
+        <title>Area Select</title>
+        <!-- https://remixicon.com/ -->
+        <link
+            href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css"
+            rel="stylesheet"
+        />
+        <!-- favicon block -->
+        <link rel="icon" type="image/png" sizes="512x512" href="favicon/android-chrome-512x512.png">
+        <link rel="icon" type="image/png" sizes="192x192" href="favicon/android-chrome-192x192.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+        <link rel="apple-touch-icon" href="favicon/apple-touch-icon.png">
+        <link rel="alternate icon" href="favicon/favicon.ico">
+        <!-- jquery block -->
+        <script src="js/jquery-3.7.1.js"></script>
+
+        <link rel="stylesheet" href="css/common.css">
+        <link rel="stylesheet" href="css/map.css">
+        <link rel="stylesheet" href="css/map_elements.css">
+
+        <!-- Bots No Index No Follow -->
+        <meta name="ROBOTS" content="NOINDEX,NOFOLLOW">
+
+        <!-- For mobile support -->
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <meta name="theme-color" content="#3da79a">
+        <meta property="og:site_name" content="Octo Application">
+        <meta property="og:image" content="./img/about-bg.gif">
+        <meta data-react-helmet="true" property="og:description" content="Lightweight repository project interacts with API Servers for a simple Data Library">    
+
+    </head>
+    <body>
+        <div class="container" id="grid">
+            <!-- Content -->
+        </div>
+
+    <script type="text/javascript">
+        const grid = document.getElementById("grid");
+
+        function populateGrid(response) {
+            grid.innerHTML = "";
+
+            if (response?.entities) {
+                for (let e = 0; e < response.entities.length; e++) {
+                    
+                    console.log(response.entities[e])
+                }
+            }
+        }
+
+        function RenderFactory(url, xyzs, apikey=null) {
+            return $.ajax({
+                type: "POST",
+                url: url,
+                timeout: 1500,
+                contentType: "application/json",
+                dataType: "json",
+                headers: apikey ? { "X-API-Key": apikey } : {},
+                data: JSON.stringify({ 'xyzs': xyzs })
+            })
+        }
+
+        function getApiKeyFromCookie() {
+            const match = document.cookie.match(/(?:^|; )X-API-Key=([^;]*)/);
+            return match ? decodeURIComponent(match[1]) : null;
+        }
+        
+        document.addEventListener("DOMContentLoaded", function () {
+            const apiKey = getApiKeyFromCookie();
+
+            const toLoad = [
+                "0,0,0,Main Area",
+                "0,0,1,Main Area",
+                "0,0,2,Main Area",
+                "0,0,3,Main Area",
+                "0,0,4,Main Area",
+                "0,0,5,Main Area",
+                "0,0,6,Main Area",
+                "0,0,7,Main Area",
+                "64,64,5,Sacred Area"
+            ]
+
+            RenderFactory("https://octo.shadowsword.ca/api/render/areas", toLoad, apiKey)
+            .done(function (res) {
+                console.log(res)
+                populateGrid(res)
+            })
+            .fail(function () {
+                console.warn("Couldn't establish DNS connection, falling back to localhost.")
+                RenderFactory("http://localhost:9300/api/render/areas", toLoad, apiKey)
+                .done(function (res) {
+                    console.log(res)
+                    populateGrid(res)
+                })
+                .fail(function () {
+                    console.warn('Error.')
+                })
+            })
+        })
+    </script>
+    </body>
+</html>

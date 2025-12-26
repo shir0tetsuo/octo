@@ -70,16 +70,19 @@ class APIKeyCheckRequest(BaseModel):
     APIKey: str
 
 class EntititesRequest(BaseModel):
-    x_axis: int
-    y_axis: int
+    x_axis: int  # map X
+    y_axis: int  # map Y
     z_axis: Literal[0, 1, 2, 3, 4, 5, 6, 7] # 8 Zones
     time_axis: float | None
 
 class EntityRequest(BaseModel):
-    x_pos: int
-    y_pos: int
+    x_pos: int  # absolute position
+    y_pos: int  # absolute position
     zone: Literal[0, 1, 2, 3, 4, 5, 6, 7] # 8 Zones
     iter: Optional[int]
+
+class AreaRequest(BaseModel):
+    xyzs: list  # [(x,y,z,string),(...)]
 
 class KeyOkayResponse(BaseModel):
     valid_key: bool = False
@@ -356,6 +359,37 @@ async def render_provider(
         message="ERROR",
         db_health={"message": "Unexpected error."}
     )
+
+@server.post('/api/render/areas')
+async def provide_area_render(
+        request: Request,
+        payload: AreaRequest,
+        user_context:security.DecryptedToken = Depends(APIKeyPresence)
+    ):
+    
+    client_host = request.client.host
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=15):
+        return ServerOkayResponse(
+            message='ERROR',
+            db_health={"message": "Rate Limit Exceeded"}
+        )
+    
+    ents = []
+    for req in payload.xyzs:
+        if isinstance(req, str):
+            req = str(req).split(',')
+            #req=[int(i) for i in str(req).split(',')]
+        x=mapmath.expand_sequence(int(req[0]))[0]
+        y=mapmath.expand_sequence(int(req[1]))[0]
+        z=int(req[2])
+        s=str(req[3])
+        if z not in databases.ZONE_INTEGER:
+            continue
+        ent = databases.normalize_entity(databases.entity_genesis(x, y, z), z)
+        ent['repr'] = {'x': int(req[0]), 'y': int(req[1]), 's': s}
+        ents.append(ent)
+    
+    return { 'entities': ents, 'user_context': user_context }
 
 @server.post('/api/render/one')
 async def provide_single_render(
