@@ -18,6 +18,7 @@ body {
 
 .cardWrapper {
     display: flexbox;
+    position: relative;
     width: 450px;
     aspect-ratio: 4 / 7;
     background-color: #10172b;
@@ -46,12 +47,23 @@ body {
     align-items: center;
     padding: 9px;
     opacity: 1;
+    transition: 1000ms;
 }
 
 .tools:hover {
     mix-blend-mode: normal IM !important;
     background-color: #e8e8e8;
     transition: 1000ms;
+}
+
+.tools .iter-number {
+    position: absolute;
+    right: 15px;
+    color: #79797995;
+}
+
+.tools a {
+    cursor: pointer;
 }
 
 .specular {
@@ -75,7 +87,66 @@ body {
   80% { background-position: 75% 50%; }
   100% { background-position: 110% 50%;}
 }
+
 .content {
     cursor: default;
     mix-blend-mode: color-dodge;
+}
+
+.content .description {
+    padding: 10px;
+}
+
+.content .cardID {
+    width: 100%; 
+    background-color: #363636; 
+    padding-left: 20px; 
+    position: absolute; 
+    padding-top: 5px; 
+    bottom: 0px; 
+    height: 25px;
+}
+
+.card .cardCenter {
+    cursor: default;
+    max-width: 100%;
+    padding: 10px;
+    text-align: center;
+    font-size: 40px;
+    position: absolute;
+    opacity: 0.5;
+    font-weight: bold;
+
+    /* Centers Elements */
+    transform: translate(-50%, -50%);  
+    left: 50%; 
+    top: 45%; 
+    transition: 500ms;
+}
+
+.card .cardCenter .ts {
+    font-size: 20px;
+}
+
+.card .cardCenter:hover {
+    background-color: #1d1d1db4;
+    color: #e8e8e8;
+    opacity: 0.75;
+    transition: 1000ms;
+}
+
+.card .topElements {
+    cursor: default; 
+    position: absolute; 
+    top: 25px;
+}
+
+.card .bottomElements {
+    cursor: default;
+    position: absolute;
+    bottom: 30px;
+}
+
+.card .glyph-actual {
+    font-size: 80px;
 }

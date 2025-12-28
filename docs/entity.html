@@ -52,52 +52,31 @@
             </div>
         </div>
 
+
         <div class="container"> <!-- No CSS yet -->
 
-            <div class="cardWrapper">
-                    <!-- TOP TOOLS -->
-                    <div class="tools holoshim">
-                        <a style="cursor: pointer;">
-                            <span><i class="ri-file-shred-fill"></i> rm</span>
-                        </a>
-                        |
-                        <a>
-                            <span><i class="ri-pencil-ai-fill"></i> edit</span>
-                        </a>
-                        <div style="position: absolute; right: 15px; color: #79797995">#0</div>
-                    </div>
-                    
 
+            <div class="cardWrapper">
+
+                <!-- TOP TOOLS -->
+                <div class="tools holoshim">
+                    <a><span><i class="ri-file-shred-fill"></i> rm</span></a>
+                    |
+                    <a><span><i class="ri-pencil-ai-fill"></i> edit</span></a>
+                    |
+                    <a><span><i class="ri-user-fill"></i> 00000000</span></a>
+                    <div class="iter-number">#0</div>
+                </div>
+
+                
+                    
+                <!-- SHADER LAYER -->
                 <div class="card specular">
-                    <!-- INNER CARD CONTENTS -->
-                    <div class="content" style="word-break: break-all;">
-                        <div style="padding: 10px;">
-                            I am the wind through the leaves,
-                            I am the wave on the sea,
-                            I am the murmur of the willows,
-                            I am the crow upon the rocks,
-                            I am a beam of sun,
-                            I am the fairest of plants,
-                            I am the wild stag of the forest,
-                            I am the grass in the fields,
-                            I am the word of knowledge.
-                            Who is it who listens to the trees?
-                            Who announces the ages of the moon?
-                            Who remembers the old ways,
-                            If not I?
-                            I am the wind through the leaves,
-                            I am the wave on the sea,
-                            I am the murmur of the willows,
-                            I am the crow upon the rocks,
-                            I am a beam of sun,
-                            I am the fairest of plants,
-                            I am the wild stag of the forest,
-                            I am the grass in the fields,
-                            I am the word of knowledge.
-                            Who is it who listens to the trees?
-                            Who announces the ages of the moon?
-                            Who remembers the old ways,
-                            If not I?
+                    <div class="cell-bar" style="position: absolute; top: 250px;"></div>
+                    <div class="cell-bar" style="position: absolute; top: 450px;"></div>
+                    <!-- INNER CARD CONTENTS ///////////////////////////// -->
+                    <div class="content wordbreak" style="word-break: break-all;">
+                        <div class="description">
                             I am the wind through the leaves,
                             I am the wave on the sea,
                             I am the murmur of the willows,
@@ -112,50 +91,43 @@
                             Who remembers the old ways,
                             If not I?
                         </div>
-                    
-                        <div style="width: 100%; background-color: #363636; padding-left: 20px; position: absolute; padding-top: 5px; bottom: 0px; height: 25px;">
+                        <!-- CARD UUID AT BOTTOM OF CARD (CUTS OFF TEXT)-->
+                        <div class="cardID">
                             <span><i class="ri-focus-2-line"></i>de0d16af-a0fa-4c6c-9616-0d4b431d1835</span> 
                         </div>
+                    </div>
+                    <!-- (END) INNER CARD CONTENTS /////////////////////// -->
 
-
+                    <!-- Central Elements -->
+                    <div class="cardCenter">
+                        Genesis
+                        <br>
+                        <div class="ts">
+                            --:--:--:--
+                        </div>
                     </div>
 
-                        <div style="font-size: 70px; position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); opacity: 0.5;">
-                            <i class="ri-poker-spades-fill"></i>
-                        </div>
-
-                        <div class="glyph-top" style="cursor: default; position: absolute; top: 25px;">
-                            <div class="glyph-slot" style="font-size: 80px;">
-                                𓅓
-                            </div>
-                            <div class="glyph-slot" style="font-size: 80px;">
-                                𓅓
-                            </div>
-                            <div class="glyph-slot" style="font-size: 80px;">
-                                𓅓
-                            </div>
-                            <div class="glyph-slot" style="font-size: 80px;">
-                                𓅓
-                            </div>
+                    <div>
+                        <!-- Glyph Elements -->
+                        <div class="glyph-top topElements">
+                            <div class="glyph-slot glyph-actual">𓅓</div>
+                            <div class="glyph-slot glyph-actual">𓅓</div>
+                            <div class="glyph-slot glyph-actual">𓅓</div>
+                            <div class="glyph-slot glyph-actual">𓅓</div>
+                            <!-- Mint Area-->
                             <div class="glyph-slot holoshim" style="font-size: 30px;">
-                                <span><i class="ri-copper-coin-fill"></i></span>
+                                <i class="ri-copper-coin-fill"></i>
                             </div>
                         </div>
 
-                        <div class="glyph-bottom" style="cursor: default; position: absolute; bottom: 30px;">
-                            <div class="glyph-slot" style="font-size: 80px;">
-                                𓅓
-                            </div>
-                            <div class="glyph-slot" style="font-size: 80px;">
-                                𓅓
-                            </div>
-                            <div class="glyph-slot" style="font-size: 80px;">
-                                𓅓
-                            </div>
-                            <div class="glyph-slot" style="font-size: 80px;">
-                                𓅓
-                            </div>
+                        <div class="glyph-bottom bottomElements">
+                            <div class="glyph-slot glyph-actual">𓅓</div>
+                            <div class="glyph-slot glyph-actual">𓅓</div>
+                            <div class="glyph-slot glyph-actual">𓅓</div>
+                            <div class="glyph-slot glyph-actual">𓅓</div>
                         </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -165,6 +137,19 @@
                 list_of_colors.forEach((value, i) => {
                     document.documentElement.style.setProperty(`--banner-channel-${i}`, value);
                 });
+            }
+
+            function increaseDescriptionSize(n=1500) { // max 2048
+                const containers = document.querySelectorAll('.description');
+                containers.forEach(div => {
+                    var text = div.innerText;
+                    console.log(text.length)
+                    while (text.length < n) {
+                        text = text + ' <i class="ri-chat-quote-line"></i> ' + text
+                        console.log(text.length)
+                    }
+                    div.innerHTML = '<i class="ri-chat-quote-line"></i> ' + text
+                })
             }
         </script>
         
