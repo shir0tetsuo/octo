@@ -320,6 +320,20 @@
                 nav.href = 'area.html?redirect=' + redirect; // This will point to the user page
             }
 
+            function handleResponse(res) {
+                if (res.message == "OK") {
+                    illuminate(res)
+                    ChangeUserNav(res)
+                    ChangeAreaNav()
+                    populateGrid(res.entities)
+                    toggleLoadingBar(false)
+                    toggleLoadingBar(false, 'skeletonloading')
+                } else if (res.message == "ERROR") {
+                    toggleLoadingBar(false)
+                    launch_error_toast(res?.db_health?.message || "Unexpected error occurred.")
+                }
+            }
+
             document.addEventListener("DOMContentLoaded", function () {
 
                 // Get params from location
@@ -343,17 +357,7 @@
                 .done(function (res) {
                     console.log(res)
                     console.log('sdq')
-                    if (res.message == "OK") {
-                        illuminate(res)
-                        ChangeUserNav(res)
-                        ChangeAreaNav()
-                        populateGrid(res.entities)
-                        toggleLoadingBar(false)
-                        toggleLoadingBar(false, 'skeletonloading')
-                    } else if (res.message == "ERROR") {
-                        toggleLoadingBar(false)
-                        launch_error_toast(res?.db_health?.message || "Unexpected error occurred.")
-                    }
+                    handleResponse(res)
                     
                 })
                 .fail(function () {
@@ -363,17 +367,7 @@
                     .done(function (res) {
                         console.log(res)
                         console.log('ldq')
-                        if (res.message == "OK") {
-                            illuminate(res)
-                            ChangeUserNav(res)
-                            ChangeAreaNav()
-                            populateGrid(res.entities)
-                            toggleLoadingBar(false)
-                            toggleLoadingBar(false, 'skeletonloading')
-                        } else if (res.message == "ERROR") {
-                            toggleLoadingBar(false)
-                            launch_error_toast(res?.db_health?.message || "Unexpected error occurred.")
-                        }
+                        handleResponse(res)
                     })
                     .fail(function () {
                         // Cannot load page, display Error Message

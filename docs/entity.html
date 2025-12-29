@@ -45,15 +45,16 @@
                 <div class="topnavleft"><a href="login.html?redirect=map.html" class="phasedBlue" id="user-login-nav"><i class="ri-passport-line"></i> login</a></div>
                 <!-- Map View Navigation -->
                 <div class="topnavleft"><a href="#" class="phasedYel" id="area-nav"><i class="ri-treasure-map-line"></i> area</a></div>
-                <div class="topnavleft"><a href="#" class="phasedYel" id="x_minus"><i class="ri-arrow-left-circle-line"></i> X-</a></div>
-                <div class="topnavleft"><a href="#" class="phasedYel" id="x_plus"><i class="ri-arrow-right-circle-line"></i> X+</a></div>
+                <div class="topnavleft"><a href="#" class="phasedYel" onclick="safeExit()"><i class="ri-corner-down-left-fill"></i> Return</a></div>
+                <div class="topnavleft"><a href="#" class="phasedYel" id="x_minus"><i class="ri-arrow-left-circle-line"></i> Back</a></div>
+                <div class="topnavleft"><a href="#" class="phasedYel" id="x_plus"><i class="ri-arrow-right-circle-line"></i> Continue</a></div>
 
                 <div class="skeleton-image" id="skeletonloading"></div>
             </div>
         </div>
 
 
-        <div class="container"> <!-- No CSS yet -->
+        <div class="container" id="container">
 
 
             <div class="cardWrapper">
@@ -133,12 +134,54 @@
         </div>
 
         <script type="text/javascript">
+
+            const container = document.getElementById('container');
+            var selected = 0;
+
+            function safeRedirect(path) {
+                if (path && path.startsWith("/") && !path.startsWith("//")) {
+                    window.location.href = path;
+                } else {
+                    window.location.href = "./index.html";
+                }
+            };
+
+            function safeExit() {
+                const params = new URLSearchParams(window.location.search);
+                const redirectTo = params.get("redirect") || "./index.html";
+                safeRedirect(redirectTo);
+            };
+
+            function RenderFactory(url, x, y, z, i, apikey=null) {
+                return $.ajax({
+                    type: "POST",
+                    url: url,
+                    timeout: 1500,
+                    contentType: "application/json",
+                    dataType: "json",
+                    headers: apikey ? { "X-API-Key": apikey } : {},
+                    data: JSON.stringify({ 'x_pos': x, 'y_pos': y, 'zone': z, 'iter': i })
+                })
+            }
+
             function illuminate(list_of_colors) {
                 list_of_colors.forEach((value, i) => {
                     document.documentElement.style.setProperty(`--banner-channel-${i}`, value);
                 });
             }
 
+            function ChangeUserNav(res) {
+                nav = document.getElementById('user-login-nav');
+                if (res.user_context.decryption_success) {
+                    redirect = encodeURIComponent(window.location.pathname + window.location.search);
+                    nav.href = 'user.html?redirect=' + redirect; // This will point to the user page
+                    nav.innerHTML = '<i class="ri-passport-fill"></i> ' + String(res.user_context.ID).split('-')[0];
+                } else {
+                    nav.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+                }
+            }
+
+            // test func
             function increaseDescriptionSize(n=1500) { // max 2048
                 const containers = document.querySelectorAll('.description');
                 containers.forEach(div => {
@@ -146,11 +189,125 @@
                     console.log(text.length)
                     while (text.length < n) {
                         text = text + ' <i class="ri-chat-quote-line"></i> ' + text
-                        console.log(text.length)
                     }
                     div.innerHTML = '<i class="ri-chat-quote-line"></i> ' + text
                 })
             }
+            
+            function ChangeAreaNav() {
+                nav = document.getElementById('area-nav');
+                redirect = encodeURIComponent(window.location.pathname + window.location.search);
+                nav.href = 'area.html?redirect=' + redirect;
+            }
+
+            function normalizeURL(x,y,z,i,redirect) {
+                const params = new URLSearchParams();
+
+                params.set("xyzi", x+','+y+','+z+','+i);
+                params.set("redirect", redirect)
+
+                const newURL = `${window.location.pathname}?${params.toString()}`;
+
+                window.history.replaceState({}, "", newURL);
+            }
+
+            function nonNegativeNumber(value, fallback) {
+                const v = Number(value);
+                return Number.isFinite(v) && v >= 0 ? v : fallback;
+            }
+            
+            function getApiKeyFromCookie() {
+                const match = document.cookie.match(/(?:^|; )X-API-Key=([^;]*)/);
+                return match ? decodeURIComponent(match[1]) : null;
+            }
+
+            function buildCard(entity_data) {
+                // Extend description length
+                const char_quote = '<i class="ri-chat-quote-line"></i> ';
+                const char_quote_long = ' '+char_quote;
+                var description = entity_data.description;
+                while (description.length < 1500) {
+                    description = description + char_quote_long + description;
+                }
+                description = char_quote + description;
+
+                const wrapper = document.createElement("div");
+                wrapper.id = "entity_"+entity_data.iter;
+                const tools = document.createElement("div"); // -- links iterator missing --
+                const card = document.createElement("div");
+                const iter_number = document.createElement("div");
+
+                wrapper.className = "cardWrapper";
+                tools.className = "tools holoshim";
+                card.className = "card specular";
+                iter_number.className = "iter-number";
+
+                // to be continued TODO
+            }
+
+            function populateContainer(res) {
+                const entity = res.entity;
+                const entity_length = entity.length;
+                const intended_iter = res.intended_iter;
+                const is_latest = res.iter_is_latest;
+                container.innerHTML = ''
+                for (const key in entity) {
+                    if (key == intended_iter-1 || key == intended_iter || key == intended_iter+1) {
+                        const entity_data = entity[key];
+                        container.appendChild(buildCard(entity_data));
+                    } else {
+                        continue
+                    }
+                }
+            }
+
+            function handleSuccess(res) {
+                if (res?.entity) {
+                    ChangeUserNav(res)
+                    //populateContainer(res)
+                    console.log(res)
+                } else {
+                    console.warn('Server did not respond with entity.')
+                }
+
+            }
+
+            document.addEventListener("DOMContentLoaded", function () {
+                // Setup;
+                const apiKey = getApiKeyFromCookie();
+                // Get params from location
+                const params = new URLSearchParams(window.location.search);
+                const xyzi = params.get('xyzi').split(','); // 
+                const redirect = params.get('redirect');
+                const xpos = Math.floor(nonNegativeNumber(xyzi[0] ?? 0, 0));
+                const ypos = Math.floor(nonNegativeNumber(xyzi[1] ?? 0, 0));
+                // Enforce [0,1,2,3,4,5,6,7] # 8 Zones
+                const zone = Math.min(7, Math.max(0, Math.floor(nonNegativeNumber(xyzi[2] ?? 0, 0))));
+                const ITER = Math.floor(nonNegativeNumber(xyzi[3] ?? 0, 0));
+
+                normalizeURL(xpos, ypos, zone, ITER, redirect ?? 'area.html');
+                ChangeAreaNav();
+
+                RenderFactory("https://octo.shadowsword.ca/api/render/one", xpos, ypos, zone, ITER, apiKey)
+                .done(function (res) {
+                    handleSuccess(res)
+                })
+                .fail(function () {
+                    RenderFactory("http://localhost:9300/api/render/one", xpos, ypos, zone, ITER, apiKey)
+                    .done(function (res) {
+                        handleSuccess(res)
+                    })
+                    .fail(function () {
+                        console.warn('Server Com Failure')
+                    })
+                })
+
+            })
+
+
+
+
+
         </script>
         
 

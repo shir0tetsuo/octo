@@ -169,7 +169,7 @@ async def get_specific_location(payload: DBEntityRequest):
     return await store.get_iters_of_one(
         payload.x, 
         payload.y, 
-        payload.i+1 
+        payload.i#+1 
         # NOTE : If iter is lower (0) -> max is 0,
         # should have another db function: Is latest iter? bool.
         # This may change in the future, due to this note.
