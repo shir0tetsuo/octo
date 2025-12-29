@@ -221,28 +221,136 @@
                 return match ? decodeURIComponent(match[1]) : null;
             }
 
-            function buildCard(entity_data) {
+            function applyChannelAnimation(pad, bar) {
+                if (!bar || typeof bar !== "object") return;
+
+                const channels = Object.values(bar); // channel_0 → channel_7
+
+                channels.forEach((c, i) => {
+                    pad.style.setProperty(`--c${i}`, c);
+                });
+
+                // First 4 drive the background animation
+                for (let i = 0; i < 4; i++) {
+                    pad.style.setProperty(`--ch-${i}`, channels[i % channels.length]);
+                }
+            }
+
+            function buildCard(entity_data, key) {
                 // Extend description length
                 const char_quote = '<i class="ri-chat-quote-line"></i> ';
                 const char_quote_long = ' '+char_quote;
                 var description = entity_data.description;
-                while (description.length < 1500) {
+                while (description.replaceAll(char_quote_long, '').length < 1500) {
                     description = description + char_quote_long + description;
                 }
                 description = char_quote + description;
 
+                // wrapper setup
                 const wrapper = document.createElement("div");
-                wrapper.id = "entity_"+entity_data.iter;
-                const tools = document.createElement("div"); // -- links iterator missing --
-                const card = document.createElement("div");
-                const iter_number = document.createElement("div");
-
                 wrapper.className = "cardWrapper";
-                tools.className = "tools holoshim";
-                card.className = "card specular";
-                iter_number.className = "iter-number";
+                wrapper.id = "entity_"+entity_data.iter;
 
-                // to be continued TODO
+                // tools setup
+                const tools = document.createElement("div");
+                tools.className = "tools holoshim";
+                
+                const tools_rm = document.createElement("a")
+                tools_rm.innerHTML = '<span><i class="ri-file-shred-fill"></i> rm</span>'
+
+                const tools_edit = document.createElement("a")
+                tools_edit.innerHTML = '<span><i class="ri-pencil-ai-fill"></i> edit</span>'
+
+                const tools_user = document.createElement("a");
+                const ownership = entity_data.ownership ?? '00000000';
+                tools_user.innerHTML = `<span><i class="ri-user-fill"></i> ${ownership.split('-')[0]}</span>`;
+
+                // card setup
+                const card = document.createElement("div");
+                card.className = "card specular";
+                
+                const bar_colors = entity_data.aesthetics?.bar;
+                const channels = Object.values(bar_colors);
+                card.style.setProperty("--spec-channel", channels[7]);
+                
+                const iter_number = document.createElement("div");
+                iter_number.className = "iter-number";
+                iter_number.innerText = '#' + key ?? '0';
+
+                const cellbar_top = document.createElement("div");
+                cellbar_top.className = "cell-bar";
+                cellbar_top.style.setProperty('position', 'absolute');
+                cellbar_top.style.setProperty('top', '250px');
+
+                const cellbar_bottom = document.createElement("div");
+                cellbar_bottom.className = "cell-bar";
+                cellbar_bottom.style.setProperty('position', 'absolute');
+                cellbar_bottom.style.setProperty('top', '450px');
+
+                const base_layer = document.createElement("div");
+                base_layer.className = "content";
+                base_layer.style.setProperty("word-break", "break-all");
+
+                const description_layer = document.createElement("div");
+                description_layer.innerHTML = description;
+
+                const central_element = document.createElement("div");
+                central_element.className ="cardCenter";
+                const ts_area = document.createElement("div")
+                ts_area.className = "ts";
+                // For now we'll leave the timestamp default blank, animate later
+                ts_area.innerText = '--:--:--:--'
+
+                // Card's db entity UUID
+                const card_id = document.createElement("div");
+                card_id.className = "cardID";
+                const id_actual = document.createElement("span");
+                id_actual.innerHTML = '<i class="ri-focus-2-line"></i>' + entity_data.uuid;
+
+                // Glyphs & Minted Indicator
+                const glyph_elements = document.createElement("div");
+                const top = document.createElement("div");
+                top.className = "glyph-top topElements";
+                const bottom = document.createElement("div");
+                bottom.className = "glyph-bottom bottomElements";
+
+                const mint_shim = document.createElement("div");
+                mint_shim.className = "glyph-slot holoshim";
+                mint_shim.style.setProperty("font-size", "30px");
+                if (entity_data.minted == true) {
+                    mint_shim.innerHTML = '<i class="ri-copper-coin-fill"></i>';
+                } else {
+                    mint_shim.innerHTML = '<i class="ri-copper-coin-line"></i>'
+                }
+                
+                const glyphs = Object.values(entity_data.aesthetics?.glyphs || {});
+                glyphs.slice(0, 8).forEach((g, i) => {
+                    const d = document.createElement("div");
+                    d.className = "glyph-slot glyph-actual";
+                    d.textContent = g;
+
+                    d.style.setProperty("--glyph-ch", i);
+                    d.style.animationDelay = `${i * 0.2}s`;
+                    
+                    if (i < 4) top.appendChild(d);
+                    else bottom.appendChild(d);
+                })
+
+                applyChannelAnimation(glyph_elements, entity_data.aesthetics?.bar);
+
+                top.appendChild(mint_shim);
+                glyph_elements.append(top, bottom);
+
+                tools.append(tools_rm, ' | ', tools_edit, ' | ', tools_user);
+                wrapper.append(tools);
+
+                central_element.append(entity_data.name, ts_area)
+                card_id.append(id_actual);
+                base_layer.append(description_layer, card_id);
+                card.append(cellbar_top, cellbar_bottom, base_layer, central_element, glyph_elements);
+                wrapper.append(card);
+
+                return wrapper;
             }
 
             function populateContainer(res) {
@@ -254,7 +362,7 @@
                 for (const key in entity) {
                     if (key == intended_iter-1 || key == intended_iter || key == intended_iter+1) {
                         const entity_data = entity[key];
-                        container.appendChild(buildCard(entity_data));
+                        container.appendChild(buildCard(entity_data, key));
                     } else {
                         continue
                     }
@@ -264,7 +372,7 @@
             function handleSuccess(res) {
                 if (res?.entity) {
                     ChangeUserNav(res)
-                    //populateContainer(res)
+                    populateContainer(res)
                     console.log(res)
                 } else {
                     console.warn('Server did not respond with entity.')
