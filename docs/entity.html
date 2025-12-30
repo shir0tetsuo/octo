@@ -466,7 +466,7 @@
                 }
                 // Get params from location
                 const params = new URLSearchParams(window.location.search);
-                const xyzi = params.get('xyzi').split(','); // 
+                const xyzi = (params.get('xyzi') ?? '0,0,0,0').split(',');
                 const redirect = params.get('redirect');
                 const xpos = Math.floor(nonNegativeNumber(xyzi[0] ?? 0, 0));
                 const ypos = Math.floor(nonNegativeNumber(xyzi[1] ?? 0, 0));
