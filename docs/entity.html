@@ -136,7 +136,8 @@
         <script type="text/javascript">
 
             const container = document.getElementById('container');
-            var selected = 0;
+            let entity;
+            //var selected = 0;
 
             function updateTS(e) {
                 if (!e) return;
@@ -228,6 +229,14 @@
             function getApiKeyFromCookie() {
                 const match = document.cookie.match(/(?:^|; )X-API-Key=([^;]*)/);
                 return match ? decodeURIComponent(match[1]) : null;
+            }
+
+            function launch_error_toast(error_text) {
+                var t = document.getElementById("error_toast")
+                var d = document.getElementById("error_desc")
+                t.className = "show";
+                d.innerText = error_text;
+                setTimeout(function(){ t.className = t.className.replace("show", ""); }, 5000);
             }
 
             function applyChannelAnimation(pad, bar) {
@@ -385,18 +394,18 @@
             }
 
             function populateContainer(res) {
-                const entity = res.entity;
+                entity = res.entity;
+                
                 const entity_length = entity.length;
                 const intended_iter = res.intended_iter;
-                const is_latest = res.iter_is_latest;
+                const is_latest = res.iter_is_latest; // currently unused
+
                 container.innerHTML = ''
-                for (const key in entity) {
-                    if (key == intended_iter-1 || key == intended_iter || key == intended_iter+1) {
-                        const entity_data = entity[key];
-                        container.appendChild(buildCard(entity_data, key));
-                    } else {
-                        continue
-                    }
+                const entity_data = entity[res.intended_iter];
+                if (entity_data) {
+                    container.appendChild(buildCard(entity_data, res.intended_iter));
+                } else {
+                    launch_error_toast('Something went wrong.')
                 }
             }
 
@@ -407,6 +416,7 @@
                     console.log(res)
                 } else {
                     console.warn('Server did not respond with entity.')
+                    launch_error_toast(res?.db_health?.message || "Unexpected error occurred.")
                 }
 
             }
@@ -449,6 +459,6 @@
 
         </script>
         
-
+        <div id="error_toast"><div id="icon"><i class="ri-signal-wifi-error-line"></i></div><div id="error_desc"></div></div>
     </body>
 </html>
