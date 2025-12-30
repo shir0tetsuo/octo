@@ -520,6 +520,7 @@
                         handleSuccess(res)
                     })
                     .fail(function () {
+                        launch_error_toast('No server reachable.')
                         console.warn('Server Com Failure')
                     })
                 })
