@@ -155,3 +155,8 @@ body {
 .card .glyph-actual {
     font-size: 80px;
 }
+
+.mintshim:hover {
+    background-color: rgba(223, 223, 223, 0.226);
+    transition: .25s ease-in-out;
+}

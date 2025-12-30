@@ -366,13 +366,15 @@
                 bottom.className = "glyph-bottom bottomElements";
 
                 const mint_shim = document.createElement("div");
-                mint_shim.className = "glyph-slot holoshim";
+                mint_shim.className = "glyph-slot holoshim mintshim";
                 mint_shim.style.setProperty("font-size", "30px");
                 if (entity_data.minted == true) {
                     mint_shim.innerHTML = '<i class="ri-copper-coin-fill"></i>';
                 } else {
                     mint_shim.innerHTML = '<i class="ri-copper-coin-line"></i>'
                 }
+                mint_shim.style.setProperty("--from", "#fff")
+                mint_shim.style.setProperty("--to", "#8e8e8e")
                 
                 const glyphs = Object.values(entity_data.aesthetics?.glyphs || {});
                 glyphs.slice(0, 8).forEach((g, i) => {
@@ -381,6 +383,11 @@
                     d.textContent = g;
 
                     d.style.setProperty("--glyph-ch", i);
+
+                    const next = channels[(i + 1) % channels.length];
+                    d.style.setProperty("--from", channels[i])
+                    d.style.setProperty("--to", next)
+
                     d.style.animationDelay = `${i * 0.2}s`;
                     
                     if (i < 4) top.appendChild(d);
