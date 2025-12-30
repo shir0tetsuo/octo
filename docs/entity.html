@@ -138,6 +138,28 @@
             const container = document.getElementById('container');
             var selected = 0;
 
+            function updateTS(e) {
+                if (!e) return;
+
+                // Read raw dataset value and coerce to a finite number (seconds)
+                const raw = e.dataset?.ts;
+                const rawNum = Number(raw);
+                const ts = Number.isFinite(rawNum) ? rawNum * 1000 : 0;
+
+                if (ts === 0) {
+                    e.innerHTML = "--:--:--:--";
+                } else {
+                    let diff = (Date.now() - ts) / 1000;
+                    const days = Math.floor(diff / 86400);
+                    const hours = Math.floor((diff % 86400) / 3600);
+                    const minutes = Math.floor((diff % 3600) / 60);
+                    const seconds = Math.floor(diff % 60);
+                    e.innerHTML = `${days}d:${hours}h:${minutes}m:${seconds}s`;
+                }
+
+                requestAnimationFrame(() => updateTS(e));
+            }
+
             function safeRedirect(path) {
                 if (path && path.startsWith("/") && !path.startsWith("//")) {
                     window.location.href = path;
@@ -179,19 +201,6 @@
                 } else {
                     nav.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
                 }
-            }
-
-            // test func
-            function increaseDescriptionSize(n=1500) { // max 2048
-                const containers = document.querySelectorAll('.description');
-                containers.forEach(div => {
-                    var text = div.innerText;
-                    console.log(text.length)
-                    while (text.length < n) {
-                        text = text + ' <i class="ri-chat-quote-line"></i> ' + text
-                    }
-                    div.innerHTML = '<i class="ri-chat-quote-line"></i> ' + text
-                })
             }
             
             function ChangeAreaNav() {
@@ -261,6 +270,9 @@
                 const tools_edit = document.createElement("a")
                 tools_edit.innerHTML = '<span><i class="ri-pencil-ai-fill"></i> edit</span>'
 
+                const tools_history = document.createElement("a");
+                tools_history.innerHTML = '<span><i class="ri-time-line"></i> history</span>'
+
                 const tools_user = document.createElement("a");
                 const ownership = entity_data.ownership ?? '00000000';
                 tools_user.innerHTML = `<span><i class="ri-user-fill"></i> ${ownership.split('-')[0]}</span>`;
@@ -272,6 +284,7 @@
                 const bar_colors = entity_data.aesthetics?.bar;
                 const channels = Object.values(bar_colors);
                 card.style.setProperty("--spec-channel", channels[7]);
+                // TODO Maybe a darkened version of the color for the bg element instead of gray?
                 
                 const iter_number = document.createElement("div");
                 iter_number.className = "iter-number";
@@ -280,12 +293,12 @@
                 const cellbar_top = document.createElement("div");
                 cellbar_top.className = "cell-bar";
                 cellbar_top.style.setProperty('position', 'absolute');
-                cellbar_top.style.setProperty('top', '250px');
+                cellbar_top.style.setProperty('top', '260px');
 
                 const cellbar_bottom = document.createElement("div");
                 cellbar_bottom.className = "cell-bar";
                 cellbar_bottom.style.setProperty('position', 'absolute');
-                cellbar_bottom.style.setProperty('top', '450px');
+                cellbar_bottom.style.setProperty('top', '525px');
 
                 const base_layer = document.createElement("div");
                 base_layer.className = "content";
@@ -299,7 +312,10 @@
                 const ts_area = document.createElement("div")
                 ts_area.className = "ts";
                 // For now we'll leave the timestamp default blank, animate later
-                ts_area.innerText = '--:--:--:--'
+                ts_area.innerText = '--:--:--:--';
+                ts_area.dataset.ts = entity_data.timestamp;
+
+                updateTS(ts_area);
 
                 // Card's db entity UUID
                 const card_id = document.createElement("div");
@@ -336,19 +352,34 @@
                     else bottom.appendChild(d);
                 })
 
+                channels.forEach((c, i) => {
+                    const ch = document.createElement("div");
+                    const next = channels[(i + 1) % channels.length];
+                    ch.style.setProperty('--xch0', c);
+                    ch.style.setProperty('--xch1', next);
+                    ch.className = 'ent-el';
+                    if (i < 4) {
+                        cellbar_top.appendChild(ch)
+                    } else {
+                        cellbar_bottom.appendChild(ch)
+                    }  
+                })
+
                 applyChannelAnimation(glyph_elements, entity_data.aesthetics?.bar);
 
+                // assembly
+                
                 top.appendChild(mint_shim);
                 glyph_elements.append(top, bottom);
 
-                tools.append(tools_rm, ' | ', tools_edit, ' | ', tools_user);
+                tools.append(tools_rm, ' | ', tools_edit, ' | ', tools_history, ' | ', tools_user, iter_number);
                 wrapper.append(tools);
 
                 central_element.append(entity_data.name, ts_area)
                 card_id.append(id_actual);
                 base_layer.append(description_layer, card_id);
-                card.append(cellbar_top, cellbar_bottom, base_layer, central_element, glyph_elements);
-                wrapper.append(card);
+                card.append(base_layer, central_element, glyph_elements);
+                wrapper.append(card, cellbar_top, cellbar_bottom);
 
                 return wrapper;
             }

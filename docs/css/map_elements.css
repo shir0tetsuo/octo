@@ -89,6 +89,13 @@ html, body {
     float: left;
 }
 
+.cell-bar .ent-el {
+    width: 25%;
+    background: linear-gradient(74deg, var(--xch0) 0, var(--xch0) 20%, var(--xch1) 75%); 
+    height: 100%; 
+    float: left;
+}
+
 .glyph-slot {
     background: rgba(255,255,255,0.08);
     color: var(--c0);
