@@ -101,8 +101,7 @@
 
                     <!-- Central Elements -->
                     <div class="cardCenter">
-                        Genesis
-                        <br>
+                        <div class="bouncing-loader"><div></div><div></div><div></div></div>
                         <div class="ts">
                             --:--:--:--
                         </div>
@@ -137,6 +136,7 @@
 
             const container = document.getElementById('container');
             let entity;
+            let currentIter = null;
             //var selected = 0;
 
             function updateTS(e) {
@@ -395,17 +395,26 @@
 
             function populateContainer(res) {
                 entity = res.entity;
-                
-                const entity_length = entity.length;
-                const intended_iter = res.intended_iter;
-                const is_latest = res.iter_is_latest; // currently unused
 
-                container.innerHTML = ''
-                const entity_data = entity[res.intended_iter];
-                if (entity_data) {
-                    container.appendChild(buildCard(entity_data, res.intended_iter));
+                const intended_iter = Number(res.intended_iter);
+                currentIter = Number.isFinite(intended_iter) ? intended_iter : null;
+
+                container.innerHTML = '';
+                renderCurrentCard();
+            }
+
+            function renderCurrentCard() {
+                if (!entity || currentIter === null) {
+                    launch_error_toast('No entity loaded.');
+                    return;
+                }
+
+                const data = entity[currentIter];
+                if (data) {
+                    container.innerHTML = '';
+                    container.appendChild(buildCard(data, currentIter));
                 } else {
-                    launch_error_toast('Something went wrong.')
+                    launch_error_toast('No card available for this iteration.');
                 }
             }
 
@@ -424,6 +433,37 @@
             document.addEventListener("DOMContentLoaded", function () {
                 // Setup;
                 const apiKey = getApiKeyFromCookie();
+                // Navigation handlers for Back / Continue
+                const backBtn = document.getElementById('x_minus');
+                const nextBtn = document.getElementById('x_plus');
+
+                if (backBtn) {
+                    backBtn.addEventListener('click', function (ev) {
+                        ev.preventDefault();
+                        if (!entity || currentIter === null) return launch_error_toast('No entity loaded.');
+                        const prev = Number(currentIter) - 1;
+                        if (prev >= 0 && entity[prev]) {
+                            currentIter = prev;
+                            renderCurrentCard();
+                        } else {
+                            launch_error_toast('No previous card available.');
+                        }
+                    });
+                }
+
+                if (nextBtn) {
+                    nextBtn.addEventListener('click', function (ev) {
+                        ev.preventDefault();
+                        if (!entity || currentIter === null) return launch_error_toast('No entity loaded.');
+                        const nxt = Number(currentIter) + 1;
+                        if (entity[nxt]) {
+                            currentIter = nxt;
+                            renderCurrentCard();
+                        } else {
+                            launch_error_toast('No next card available.');
+                        }
+                    });
+                }
                 // Get params from location
                 const params = new URLSearchParams(window.location.search);
                 const xyzi = params.get('xyzi').split(','); // 
