@@ -163,6 +163,7 @@
             const container = document.getElementById('container');
             let entity;
             let currentIter = null;
+            var activeFace = 'main';
             //var selected = 0;
 
             function updateTS(e) {
@@ -213,11 +214,119 @@
                 })
             }
 
-            function illuminate(list_of_colors) {
-                list_of_colors.forEach((value, i) => {
+            function shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+
+            function illuminate(res) {
+                b = shuffle(res.banner);
+                b.forEach((value, i) => {
                     document.documentElement.style.setProperty(`--banner-channel-${i}`, value);
                 });
             }
+
+            // Card front/back facing toggle
+
+            function _toggle(b, layer) {
+                const d = document.getElementById(layer);
+                if (b !== undefined) { 
+                    d.style.display = b ? 'block' : 'none';
+                } else {
+                    d.style.display = (d.style.display === 'none') ? 'block' : 'none';
+                }
+            }
+
+            function cardSwap(active) {
+                // Remove any previous datasurface layer
+                const d = document.getElementById('datasurface');
+                d.innerHTML = '';
+
+                const c = document.getElementById('card_main');
+                if (active == activeFace) {
+                    if (c.style.display === 'none') {
+                        _toggle(true, 'card_main');
+                        _toggle(false, 'datasurface');
+                    } else {
+                        _toggle(false, 'card_main');
+                        _toggle(true, 'datasurface');
+                    }
+                } else {
+                    _toggle(false, 'card_main');
+                    _toggle(true, 'datasurface');
+                    activeFace = active
+                }
+                // Element displays not controlled here
+            }
+
+            function underline_tool_nav(nav_name) {
+                const navs = ['nav_tools_rm', 'nav_tools_edit', 'nav_tools_history', 'nav_tools_id'];
+                const c = document.getElementById('card_main');
+                if (c.style.display === 'none') {
+                    for (const n in navs) {
+                        if (navs[n] === nav_name) {
+                            d = document.getElementById(nav_name);
+                            d.className = 'tools_selected'
+                        } else {
+                            d = document.getElementById(navs[n])
+                            d.className = ''
+                        }
+                    }
+                } else {
+                    for (const n in navs) {
+                        d = document.getElementById(navs[n])
+                        d.className = ''
+                    }
+                }
+            }
+
+            function showCardRm() {
+                cardSwap('rm');
+                underline_tool_nav('nav_tools_rm');
+                if (currentIter == 0) {
+                    const char_quote = '<i class="ri-prohibited-line"></i> ';
+                    const char_quote_long = ' '+char_quote;
+                    var description = "Removal not allowed; Genesis #0 cannot be removed, only minted";
+                    while (description.replaceAll(char_quote_long, '').length < 1500) {
+                        description = description + char_quote_long + description;
+                    }
+                    description = char_quote + description;
+                    const ds = document.getElementById('datasurface');
+                    const specular_layer = document.createElement("div");
+                    specular_layer.className = 'card specular';
+                    specular_layer.style.setProperty('--spec-channel', '#3d3d3d');
+                    const content = document.createElement("div");
+                    content.className = "content";
+                    content.style.setProperty("word-break", "break-all");
+                    const description_layer = document.createElement("div");
+                    description_layer.innerHTML = description;
+
+                    content.appendChild(description_layer);
+                    specular_layer.appendChild(content);
+                    ds.appendChild(specular_layer);
+                } // else if (currentIter+1 < entity.length)
+                // as only the last card in the stack may be removed. TODO
+            }
+
+            function showCardEdit() {
+                cardSwap('edit');
+                underline_tool_nav('nav_tools_edit');
+            }
+
+            function showCardHistory() {
+                cardSwap('history');
+                underline_tool_nav('nav_tools_history');
+            }
+
+            function showCardOwner() {
+                cardSwap('owner');
+                underline_tool_nav('nav_tools_id');
+            }
+
+            // (End front/back toggle)
 
             function ChangeUserNav(res) {
                 nav = document.getElementById('user-login-nav');
@@ -300,21 +409,32 @@
                 tools.className = "tools holoshim";
                 
                 const tools_rm = document.createElement("a")
-                tools_rm.innerHTML = '<span><i class="ri-file-shred-fill"></i> rm</span>'
+                tools_rm.id = 'nav_tools_rm'
+                tools_rm.innerHTML = '<span onclick="showCardRm()"><i class="ri-file-shred-fill"></i> rm</span>'
 
                 const tools_edit = document.createElement("a")
-                tools_edit.innerHTML = '<span><i class="ri-pencil-ai-fill"></i> edit</span>'
+                tools_edit.id = 'nav_tools_edit'
+                tools_edit.innerHTML = '<span onclick="showCardEdit()"><i class="ri-pencil-ai-fill"></i> edit</span>'
 
                 const tools_history = document.createElement("a");
-                tools_history.innerHTML = '<span><i class="ri-time-line"></i> history</span>'
+                tools_history.id = 'nav_tools_history'
+                tools_history.innerHTML = '<span onclick="showCardHistory()"><i class="ri-time-line"></i> history</span>'
 
                 const tools_user = document.createElement("a");
                 const ownership = entity_data.ownership ?? '00000000';
-                tools_user.innerHTML = `<span><i class="ri-user-fill"></i> ${ownership.split('-')[0]}</span>`;
+                tools_user.id = 'nav_tools_id'
+                tools_user.style.setProperty('font-family', 'monospace');
+                tools_user.innerHTML = `<span onclick="showCardOwner()"><i class="ri-user-fill"></i> ${ownership.split('-')[0]}</span>`;
 
                 // card setup
                 const card = document.createElement("div");
                 card.className = "card specular";
+                card.id = "card_main";
+
+                const data_surface = document.createElement("div");
+                data_surface.className = "card";
+                data_surface.style.setProperty("display", "none");
+                data_surface.id = "datasurface";
                 
                 const bar_colors = entity_data.aesthetics?.bar;
                 const channels = Object.values(bar_colors);
@@ -421,7 +541,7 @@
                 card_id.append(id_actual);
                 base_layer.append(description_layer, card_id);
                 card.append(base_layer, central_element, glyph_elements);
-                wrapper.append(card, cellbar_top, cellbar_bottom);
+                wrapper.append(data_surface, card, cellbar_top, cellbar_bottom);
 
                 return wrapper;
             }
@@ -455,6 +575,9 @@
                 if (res?.entity) {
                     ChangeUserNav(res)
                     populateContainer(res)
+                    illuminate(res)
+                    _toggle(false, 'loading')
+                    _toggle(false, 'skeletonloading')
                     console.log(res)
                 } else {
                     console.warn('Server did not respond with entity.')
