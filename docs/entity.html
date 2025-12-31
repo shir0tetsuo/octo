@@ -162,6 +162,7 @@
 
             const container = document.getElementById('container');
             let entity;
+            let redirect;
             let currentIter = null;
             var activeFace = 'main';
             //var selected = 0;
@@ -564,6 +565,7 @@
                 return wrapper;
             }
 
+            // initial populate
             function populateContainer(res) {
                 entity = res.entity;
 
@@ -584,6 +586,7 @@
                 if (data) {
                     container.innerHTML = '';
                     container.appendChild(buildCard(data, currentIter));
+                    normalizeURL(data.positionX, data.positionY, data.positionZ, data.iter, redirect ?? 'area.html')
                 } else {
                     launch_error_toast('No card available for this iteration.');
                 }
@@ -641,7 +644,7 @@
                 // Get params from location
                 const params = new URLSearchParams(window.location.search);
                 const xyzi = (params.get('xyzi') ?? '0,0,0,0').split(',');
-                const redirect = params.get('redirect');
+                redirect = params.get('redirect');
                 const xpos = Math.floor(nonNegativeNumber(xyzi[0] ?? 0, 0));
                 const ypos = Math.floor(nonNegativeNumber(xyzi[1] ?? 0, 0));
                 // Enforce [0,1,2,3,4,5,6,7] # 8 Zones
