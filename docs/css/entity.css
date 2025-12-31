@@ -161,6 +161,25 @@ body {
     transition: .25s ease-in-out;
 }
 
+.mintshim .extrude {
+    background-color: #1d1d1db4;
+    font-family: monospace;
+    display: none;
+    position: absolute;
+    margin-top: 10px;
+    height: calc(100% - 10px);
+    width: 300%;
+    overflow: hidden;
+    text-align: center;
+    top: 0px;
+    left: 100%;
+    z-index: 5;
+}
+
+.mintshim .extrude a:hover {
+    cursor: pointer;
+}
+
 .tools_selected {
     border-bottom: rgba(255, 255, 255, 0.664) 2px dotted;
 }

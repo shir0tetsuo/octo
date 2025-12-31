@@ -326,6 +326,12 @@
                 underline_tool_nav('nav_tools_id');
             }
 
+            function showMintControl() {
+                // should display "Mint" and "Create" options.
+                m = document.getElementById('mint_control');
+                m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+            }
+
             // (End front/back toggle)
 
             function ChangeUserNav(res) {
@@ -387,6 +393,10 @@
                 for (let i = 0; i < 4; i++) {
                     pad.style.setProperty(`--ch-${i}`, channels[i % channels.length]);
                 }
+            }
+
+            function testOK() {
+                console.log('OK!')
             }
 
             function buildCard(entity_data, key) {
@@ -486,6 +496,7 @@
                 bottom.className = "glyph-bottom bottomElements";
 
                 const mint_shim = document.createElement("div");
+                mint_shim.onclick = () => showMintControl();
                 mint_shim.className = "glyph-slot holoshim mintshim";
                 mint_shim.style.setProperty("font-size", "30px");
                 if (entity_data.minted == true) {
@@ -495,6 +506,13 @@
                 }
                 mint_shim.style.setProperty("--from", "#fff")
                 mint_shim.style.setProperty("--to", "#8e8e8e")
+
+                // TODO Prototype - not finished product.
+                const mint_ctrl = document.createElement("div");
+                mint_ctrl.className = 'extrude';
+                mint_ctrl.id = 'mint_control';
+                mint_ctrl.innerHTML = '<i class="ri-alert-line"></i> <a onclick="testOK()"><i class="ri-copper-coin-fill"></i> Mint</a> <a><i class="ri-function-add-line"></i> New</a>'
+                mint_shim.append(mint_ctrl);
                 
                 const glyphs = Object.values(entity_data.aesthetics?.glyphs || {});
                 glyphs.slice(0, 8).forEach((g, i) => {
@@ -630,7 +648,7 @@
                 const zone = Math.min(7, Math.max(0, Math.floor(nonNegativeNumber(xyzi[2] ?? 0, 0))));
                 const ITER = Math.floor(nonNegativeNumber(xyzi[3] ?? 0, 0));
 
-                normalizeURL(xpos, ypos, zone, ITER, redirect ?? 'area.html');
+                normalizeURL(xpos, ypos, zone, ITER, redirect ?? 'area.html'); // TODO Normalize nav for next/prev iter
                 ChangeAreaNav();
 
                 RenderFactory("https://octo.shadowsword.ca/api/render/one", xpos, ypos, zone, ITER, apiKey)
