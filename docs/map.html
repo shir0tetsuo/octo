@@ -137,7 +137,7 @@
 
                 const owner = document.createElement("div");
                 owner.className = "owner";
-                owner.textContent = entity.owner ?? "00000000";
+                owner.textContent = (entity.ownership ?? "00000000").split('-')[0];
 
                 // extrusion tooltip with hidden timestamp
                 const extrusion = document.createElement("div");
