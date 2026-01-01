@@ -1,6 +1,6 @@
 # OCTO
 
-## Online Cartographer Tool Observatory
+## Online Cartographer Tool/Observatory
 
 **Project uses:** Python, Github Pages, jquery, HTML, CSS, Caddy (HTTPS Proxy)
 

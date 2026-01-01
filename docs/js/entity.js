@@ -70,9 +70,18 @@ function safeRedirect(path) {
 function safeExit() {
     // Navigate back to redirect URL or default to index
     const params = new URLSearchParams(window.location.search);
-    const encodedRedirect = params.get("redirect");
-    // Decode the redirect parameter if it exists
-    const redirectTo = encodedRedirect ? decodeURIComponent(encodedRedirect) : "./index.html";
+    let redirectTo = params.get("redirect") || "./index.html";
+    
+    // Defensively decode if the value still appears to be encoded
+    // (starts with % indicating URL-encoded characters)
+    if (redirectTo && redirectTo.startsWith("%") && !redirectTo.startsWith("/")) {
+        try {
+            redirectTo = decodeURIComponent(redirectTo);
+        } catch (e) {
+            console.warn('Failed to decode redirect:', redirectTo);
+        }
+    }
+    
     safeRedirect(redirectTo);
 };
 
@@ -301,14 +310,16 @@ function showMintControl(event) {
  */
 function ChangeUserNav(res) {
     nav = document.getElementById('user-login-nav');
+    // Build redirect for user/login pages pointing back to current page
+    const currentPageRedirect = encodeURIComponent(window.location.pathname + window.location.search);
+    
     if (res.user_context.decryption_success) {
         // User authenticated - show their ID (first segment of UUID)
-        redirect = encodeURIComponent(window.location.pathname + window.location.search);
-        nav.href = 'user.html?redirect=' + redirect; // This will point to the user page
+        nav.href = 'user.html?redirect=' + currentPageRedirect;
         nav.innerHTML = '<i class="ri-passport-fill"></i> ' + String(res.user_context.ID).split('-')[0];
     } else {
         // User not authenticated - show login button
-        nav.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+        nav.href = `login.html?redirect=${currentPageRedirect}`;
     }
 }
 
@@ -317,25 +328,29 @@ function ChangeUserNav(res) {
  */
 function ChangeAreaNav() {
     nav = document.getElementById('area-nav');
-    redirect = encodeURIComponent(window.location.pathname + window.location.search);
-    nav.href = 'area.html?redirect=' + redirect;
+    // Build redirect for area page pointing back to current page
+    const currentPageRedirect = encodeURIComponent(window.location.pathname + window.location.search);
+    nav.href = 'area.html?redirect=' + currentPageRedirect;
 }
 
 /**
  * Updates browser URL without reloading page to reflect current entity location.
- * Format: ?xyzi=x,y,z,iter&redirect=url
+ * Preserves the existing redirect parameter from the global redirect variable.
+ * Format: ?xyzi=x,y,z,iter&redirect=...
  * 
  * @param {number} x - X coordinate
  * @param {number} y - Y coordinate
  * @param {number} z - Zone ID
  * @param {number} i - Iteration number
- * @param {string} redirect - Return URL for navigation
  */
-function normalizeURL(x,y,z,i,redirect) {
+function normalizeURL(x,y,z,i) {
     const params = new URLSearchParams();
-
-    params.set("xyzi", x+','+y+','+z+','+i);
-    params.set("redirect", redirect)
+    params.set("xyzi", `${x},${y},${z},${i}`);
+    
+    // Preserve the redirect parameter from the global redirect variable (set at page load)
+    if (redirect) {
+        params.set("redirect", redirect);
+    }
 
     const newURL = `${window.location.pathname}?${params.toString()}`;
 
@@ -702,8 +717,8 @@ function renderCurrentCard() {
             mintShim.addEventListener('click', showMintControl);
         }
         
-        // Update URL bar to reflect current location
-        normalizeURL(data.positionX, data.positionY, data.positionZ, data.iter, redirect ?? 'area.html')
+        // Update URL bar to reflect current location (don't include redirect to prevent nesting)
+        normalizeURL(data.positionX, data.positionY, data.positionZ, data.iter)
     } else {
         launch_error_toast('No card available for this iteration.');
     }
@@ -774,7 +789,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Expected format: ?xyzi=x,y,z,iter&redirect=url
     const params = new URLSearchParams(window.location.search);
     const xyzi = (params.get('xyzi') ?? '0,0,0,0').split(',');
-    redirect = params.get('redirect');
+    redirect = params.get('redirect'); // Store in global for later use
     
     // Extract coordinates (validate as non-negative integers)
     const xpos = Math.floor(nonNegativeNumber(xyzi[0] ?? 0, 0));
@@ -785,8 +800,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // Iteration to display
     const ITER = Math.floor(nonNegativeNumber(xyzi[3] ?? 0, 0));
 
-    // Normalize URL with validated parameters
-    normalizeURL(xpos, ypos, zone, ITER, redirect ?? 'area.html');
+    // Normalize URL with validated parameters (redirect preserved from global variable)
+    normalizeURL(xpos, ypos, zone, ITER);
     ChangeAreaNav();
 
     // ──── Fetch Entity Data ─────────────────────────────────────────────────

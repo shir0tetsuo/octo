@@ -245,22 +245,31 @@
                 window.history.replaceState({}, "", newURL);
             }
 
-            function buildURL(x, y, z) {
+            function buildURL(x, y, z, redirect=null) {
                 const params = new URLSearchParams({
                     x: x,
                     y: y,
                     z: z
                 });
+                
+                // Preserve redirect parameter if it exists
+                if (redirect) {
+                    params.set("redirect", redirect);
+                }
 
                 return `${window.location.pathname}?${params.toString()}`;
             }
 
             function updateNavLinks(x, y, z) {
-                $("#x_plus").attr("href", buildURL(x + 1, y, z));
-                $("#x_minus").attr("href", buildURL(Math.max(0, x - 1), y, z));
+                // Get the current redirect parameter to preserve it during navigation
+                const currentParams = new URLSearchParams(window.location.search);
+                const currentRedirect = currentParams.get("redirect");
+                
+                $("#x_plus").attr("href", buildURL(x + 1, y, z, currentRedirect));
+                $("#x_minus").attr("href", buildURL(Math.max(0, x - 1), y, z, currentRedirect));
 
-                $("#y_plus").attr("href", buildURL(x, y + 1, z));
-                $("#y_minus").attr("href", buildURL(x, Math.max(0, y - 1), z));
+                $("#y_plus").attr("href", buildURL(x, y + 1, z, currentRedirect));
+                $("#y_minus").attr("href", buildURL(x, Math.max(0, y - 1), z, currentRedirect));
             }
 
             function getApiKeyFromCookie() {
