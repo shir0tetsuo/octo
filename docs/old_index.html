@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+
+<!-- This is the page that will be served on the front end -->
+<html lang="en">
+    <head>
+        
+        <title>Server Status</title>
+        <link rel="icon" type="image/png" sizes="512x512" href="favicon/android-chrome-512x512.png">
+        <link rel="icon" type="image/png" sizes="192x192" href="favicon/android-chrome-192x192.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+        <link rel="apple-touch-icon" href="favicon/apple-touch-icon.png">
+        <link rel="alternate icon" href="favicon/favicon.ico">
+
+        <script src="js/jquery-3.7.1.js"></script>
+
+        <link rel="stylesheet" href="css/index.css">
+
+        <!-- Bots No Index No Follow -->
+        <meta name="ROBOTS" content="NOFOLLOW">
+
+        <!-- For mobile support -->
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <meta name="theme-color" content="#3da79a">
+        <meta property="og:site_name" content="Octo Application">
+        <meta property="og:image" content="./img/about-bg.gif">
+        <meta data-react-helmet="true" property="og:description" content="Lightweight repository project interacts with API Servers for a simple Data Library">    
+
+    </head>
+    <body onload="doHealthPost()">
+        <main class="main-container">
+        <svg class="svg-container">
+            <defs>
+            <filter id="turbulent-displace" colorInterpolationFilters="sRGB" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="turbulence" baseFrequency="0.02" numOctaves="10" result="noise1" seed="1" />
+                <feOffset in="noise1" dx="0" dy="0" result="offsetNoise1">
+                <animate attributeName="dy" values="700; 0" dur="6s" repeatCount="indefinite" calcMode="linear" />
+                </feOffset>
+
+                <feTurbulence type="turbulence" baseFrequency="0.02" numOctaves="10" result="noise2" seed="1" />
+                <feOffset in="noise2" dx="0" dy="0" result="offsetNoise2">
+                <animate attributeName="dy" values="0; -700" dur="6s" repeatCount="indefinite" calcMode="linear" />
+                </feOffset>
+
+                <feTurbulence type="turbulence" baseFrequency="0.02" numOctaves="10" result="noise1" seed="2" />
+                <feOffset in="noise1" dx="0" dy="0" result="offsetNoise3">
+                <animate attributeName="dx" values="490; 0" dur="6s" repeatCount="indefinite" calcMode="linear" />
+                </feOffset>
+
+                <feTurbulence type="turbulence" baseFrequency="0.02" numOctaves="10" result="noise2" seed="2" />
+                <feOffset in="noise2" dx="0" dy="0" result="offsetNoise4">
+                <animate attributeName="dx" values="0; -490" dur="6s" repeatCount="indefinite" calcMode="linear" />
+                </feOffset>
+
+                <feComposite in="offsetNoise1" in2="offsetNoise2" result="part1" />
+                <feComposite in="offsetNoise3" in2="offsetNoise4" result="part2" />
+                <feBlend in="part1" in2="part2" mode="color-dodge" result="combinedNoise" />
+
+                <feDisplacementMap in="SourceGraphic" in2="combinedNoise" scale="30" xChannelSelector="R" yChannelSelector="B" />
+            </filter>
+            </defs>
+        </svg>
+
+        <div class="card-container">
+            <div class="inner-container">
+            <div class="border-outer">
+                <div class="main-card"></div>
+            </div>
+            <div class="glow-layer-1"></div>
+            <div class="glow-layer-2"></div>
+            </div>
+
+            <div class="overlay-1"></div>
+            <div class="overlay-2"></div>
+            <div class="background-glow"></div>
+
+            <div class="content-container">
+            <div class="content-top">
+                <div class="scrollbar-glass" id="statusbartag">
+                status
+                </div>
+                <p class="title" id="loadingstatus">Loading...</p>
+            </div>
+
+            <hr class="divider" />
+
+            <div class="content-bottom">
+                <p class="description" id="description">Establishing connection to octo.shadowsword.ca</p><br>
+                <div id="hidden-until-ok" style="display: none;">
+                    <div class="scrollbar-button" style="margin-top: 15px;">
+                        <p><a href="map.html" id="enterApplication" class="index-a">Enter Application</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </main>
+        
+        <!-- jquery elements -->
+
+        <script type="text/javascript">function warnUserTerminal(){console.warn("STOP! Don't paste anything into your terminal. This space is reserved for developers and administrators. You may be locked out if unauthorized!")};warnUserTerminal()</script>
+
+        <script type="text/javascript">
+
+            function showHiddenButton(data) {
+                if (data?.message == "OK") {
+                    document.getElementById("hidden-until-ok").style = 'display: block;'
+                }
+            }
+
+            function updateDescription(description) {
+                document.getElementById("description").textContent =
+                    `${description}`;
+            }
+
+            function updateStatus(data, source) {
+                document.getElementById("loadingstatus").textContent =
+                    `${source} Server: ${data.message ?? "unknown"}`;
+                updateStatusBarTag(data)
+            }
+
+            function updateStatusBarTag(data) {
+                document.getElementById("statusbartag").textContent =
+                    `${data.version ?? "unknown"}`
+            }
+
+            function doHealthPost() {
+                $.ajax({
+                    type: "GET",
+                    url: "https://octo.shadowsword.ca/api/health",
+                    timeout: 3000,
+                    dataType: "json",
+                    success: function (data) {
+                        console.log("Remote server reachable");
+                        updateDescription("Remote server reachable");
+                        console.log(data?.db_health);
+                        showHiddenButton(data);
+                        updateStatus(data, "Octo");
+                    },
+                    error: function () {
+                        console.warn("Remote server unreachable, falling back to localhost");
+
+                        $.ajax({
+                            type: "GET",
+                            url: "http://localhost:9300/api/health",
+                            timeout: 6000,
+                            dataType: "json",
+                            success: function (data) {
+                                console.log("Local server reachable");
+                                console.log(data?.db_health);
+                                updateDescription("Local server reachable");
+                                showHiddenButton(data);
+                                updateStatus(data, "Local");
+                            },
+                            error: function () {
+                                document.getElementById("loadingstatus").textContent =
+                                    "No server reachable";
+                            }
+                        });
+                    }
+                });
+            }
+        </script>
+
+    </body>
+</html>
