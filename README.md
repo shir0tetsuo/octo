@@ -2,6 +2,8 @@
 
 ## Online Cartographer Tool/Observatory
 
+<img width="1170" height="642" alt="image" src="https://github.com/user-attachments/assets/fc19f0a0-e2fd-44a4-bf14-a2df080fa4f5" />
+
 **Project uses:** Python, Github Pages, jquery, HTML, CSS, Caddy (HTTPS Proxy)
 
 to serve dynamically built web pages with a backend API server (for modularity so we can put the database itself on another machine) and a frontend API server (so we can communicate the data back to Github and handle "user authentication")
