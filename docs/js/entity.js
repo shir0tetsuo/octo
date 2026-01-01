@@ -70,7 +70,9 @@ function safeRedirect(path) {
 function safeExit() {
     // Navigate back to redirect URL or default to index
     const params = new URLSearchParams(window.location.search);
-    const redirectTo = params.get("redirect") || "./index.html";
+    const encodedRedirect = params.get("redirect");
+    // Decode the redirect parameter if it exists
+    const redirectTo = encodedRedirect ? decodeURIComponent(encodedRedirect) : "./index.html";
     safeRedirect(redirectTo);
 };
 
@@ -268,10 +270,25 @@ function showCardOwner() {
  * Minting options:
  * - Mint: Commit genesis (#0) to database (requires ownership)
  * - New: Create next iteration (#1, #2, etc) after genesis is minted
+ * Uses event delegation for robustness across DOM re-renders.
  */
-function showMintControl() {
-    m = document.getElementById('mint_control');
-    m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+function showMintControl(event) {
+    if (event && event.target) {
+        // Called from event listener - find mint_ctrl within clicked element
+        const mintShim = event.target.closest('.mintshim');
+        if (mintShim) {
+            const m = mintShim.querySelector('#mint_control');
+            if (m) {
+                m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+            }
+        }
+    } else {
+        // Fallback for inline onclick (shouldn't happen with new approach)
+        m = document.getElementById('mint_control');
+        if (m) {
+            m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+        }
+    }
 }
 
 // ──── Navigation & URL Management ────────────────────────────────────────────
@@ -557,10 +574,10 @@ function buildCard(entity_data, key) {
 
     // Mint indicator (coin icon) - shows whether entity has been committed to DB
     const mint_shim = document.createElement("div");
-    mint_shim.onclick = () => showMintControl();
     mint_shim.className = "glyph-slot holoshim mintshim";
     mint_shim.style.setProperty("font-size", "30px");
     mint_shim.id = 'mint_shim';
+    mint_shim.setAttribute('data-mint-trigger', 'true'); // Mark for event delegation
     if ((entity_data.minted == true) && (entity_data.exists == true) ) {
         mint_shim.innerHTML = '<i class="ri-copper-coin-fill"></i>'; // Filled = minted
     } else {
@@ -676,7 +693,15 @@ function renderCurrentCard() {
     const data = entity[currentIter];
     if (data) {
         container.innerHTML = '';
-        container.appendChild(buildCard(data, currentIter));
+        const card = buildCard(data, currentIter);
+        container.appendChild(card);
+        
+        // Add event delegation for mint_shim clicks
+        const mintShim = container.querySelector('[data-mint-trigger="true"]');
+        if (mintShim) {
+            mintShim.addEventListener('click', showMintControl);
+        }
+        
         // Update URL bar to reflect current location
         normalizeURL(data.positionX, data.positionY, data.positionZ, data.iter, redirect ?? 'area.html')
     } else {
