@@ -711,12 +711,6 @@ function renderCurrentCard() {
         const card = buildCard(data, currentIter);
         container.appendChild(card);
         
-        // Add event delegation for mint_shim clicks
-        const mintShim = container.querySelector('[data-mint-trigger="true"]');
-        if (mintShim) {
-            mintShim.addEventListener('click', showMintControl);
-        }
-        
         // Update URL bar to reflect current location (don't include redirect to prevent nesting)
         normalizeURL(data.positionX, data.positionY, data.positionZ, data.iter)
     } else {
@@ -751,6 +745,15 @@ function handleSuccess(res) {
 document.addEventListener("DOMContentLoaded", function () {
     // Retrieve API key for authenticated requests
     const apiKey = getApiKeyFromCookie();
+    
+    // ──── Event Delegation for Persistent UI Elements ────────────────────────
+    // Attach event listeners to container that persist across re-renders
+    container.addEventListener('click', function(e) {
+        const mintShim = e.target.closest('[data-mint-trigger="true"]');
+        if (mintShim) {
+            showMintControl(e);
+        }
+    });
     
     // ──── Iteration Navigation Handlers ─────────────────────────────────────
     // "Back" button: Jump to previous iteration (if exists)
