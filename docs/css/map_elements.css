@@ -24,9 +24,15 @@ html, body {
 }
 
 /* state-based borders */
-.cell[data-state="1"] { border-color: #00ffff; }
-.cell[data-state="2"] { border-color: #ff00ff; }
-.cell[data-state="3"] { border-color: #ffaa00; }
+.cell[data-state="1"] { 
+    border-color: var(--dc0);
+}
+.cell[data-state="2"] { 
+    border-color: var(--dc7); border-style: dotted; 
+}
+.cell[data-state="3"] { 
+    border-color: var(--dc1); border-style: dashed; 
+}
 
 /* ===== ANIMATED CHANNEL BACKGROUND ===== */
 .cell-pad {

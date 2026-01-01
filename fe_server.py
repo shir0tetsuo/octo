@@ -457,6 +457,11 @@ async def mint_entity(
             entity_to_mint['ownership'] = user_context.ID
             entity_to_mint['minted'] = True
             entity_to_mint['timestamp'] = time.time()
+
+            if (_iter == 0):
+                entity_to_mint["state"] = 1
+            else:
+                entity_to_mint["state"] = 2
             
             # Remove UI flag (always remove)
             entity_to_mint.pop('exists', None)
