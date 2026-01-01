@@ -476,27 +476,6 @@ function mintRequest() {
 }
 
 /**
- * Handler for creating a new iteration (placeholder).
- * Currently shows a toast; verifies genesis is minted before proceeding.
- */
-function createNewIteration(event) {
-    const trigger = event.target.closest('[data-new-trigger="true"]');
-    if (!trigger) return;
-    const wrapper = trigger.closest('.cardWrapper');
-    if (!wrapper) return launch_error_toast('Cannot determine card for new iteration.');
-    const iterId = Number((wrapper.id || '').split('_')[1]);
-    const cardEntity = entity[iterId];
-    if (!cardEntity) return launch_error_toast('Entity data not found.');
-
-    if (!cardEntity.minted) {
-        return launch_error_toast('Create new iteration requires genesis to be minted.');
-    }
-
-    // Placeholder implementation - actual iteration creation not implemented yet
-    launch_toast('Create new iteration not implemented yet.');
-}
-
-/**
  * Dynamically constructs the complete card DOM element from entity data.
  * Handles:
  * - Entity content (name, description, glyphs, timestamp)
@@ -613,7 +592,7 @@ function buildCard(entity_data, key) {
     mint_shim.className = "glyph-slot holoshim mintshim";
     mint_shim.style.setProperty("font-size", "30px");
     mint_shim.id = 'mint_shim';
-    mint_shim.setAttribute('data-mint-trigger', 'true'); // Mark for event delegation
+    //mint_shim.setAttribute('data-mint-trigger', 'true'); // Mark for event delegation
     if ((entity_data.minted == true) && (entity_data.exists == true) ) {
         mint_shim.innerHTML = '<i class="ri-copper-coin-fill"></i>'; // Filled = minted
     } else {
@@ -621,14 +600,13 @@ function buildCard(entity_data, key) {
     }
     mint_shim.style.setProperty("--from", "#fff")
     mint_shim.style.setProperty("--to", "#8e8e8e")
+    mint_shim.onclick = () => showMintControl()
 
     // Mint control menu (appears when coin is clicked)
     // TODO: Implement actual mint and create new iteration functionality
     const mint_ctrl = document.createElement("div");
     mint_ctrl.className = 'extrude';
     mint_ctrl.id = 'mint_control';
-
-
     
     const user_is_owner = ((entity_data.ownership ?? user_context.ID) == user_context.ID);
     
@@ -645,8 +623,7 @@ function buildCard(entity_data, key) {
     // 2. Entity must NOT be minted yet (iteration #0 only)
     // 3. User must be authenticated (decryption_success)
     const mint_request_ctrl = (user_is_owner && (entity_data.minted == false) && user_context.decryption_success) ? '<a onclick="mintRequest()"><i class="ri-copper-coin-fill"></i> Mint</a> ' : ''
-    // Add a data attribute to the New control so event delegation can handle it
-    mint_ctrl.innerHTML = '<i class="ri-alert-line"></i> ' + mint_request_ctrl + '<a href="#" data-new-trigger="true"><i class="ri-function-add-line"></i> New</a>'
+    mint_ctrl.innerHTML = '<i class="ri-alert-line"></i> ' + mint_request_ctrl + '<a><i class="ri-function-add-line"></i> New</a>'
     mint_shim.append(mint_ctrl);
     
     const glyphs = Object.values(entity_data.aesthetics?.glyphs || {});
@@ -769,22 +746,6 @@ function handleSuccess(res) {
 document.addEventListener("DOMContentLoaded", function () {
     // Retrieve API key for authenticated requests
     const apiKey = getApiKeyFromCookie();
-    // Delegated event listeners attached once to container to persist across re-renders
-    container.addEventListener('click', function(e) {
-        // Mint control toggle
-        const mintShim = e.target.closest('[data-mint-trigger="true"]');
-        if (mintShim) {
-            showMintControl(e);
-            return;
-        }
-        // New iteration action
-        const newTrigger = e.target.closest('[data-new-trigger="true"]');
-        if (newTrigger) {
-            e.preventDefault();
-            createNewIteration(e);
-            return;
-        }
-    });
     
     // ──── Iteration Navigation Handlers ─────────────────────────────────────
     // "Back" button: Jump to previous iteration (if exists)
