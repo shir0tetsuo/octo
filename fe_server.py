@@ -391,6 +391,110 @@ async def provide_area_render(
     
     return { 'entities': ents, 'user_context': user_context }
 
+@server.post('/api/mint') # Mint applies ownership over entity stack and disables editing.
+async def mint_entity(
+        request: Request,
+        payload: EntityRequest,
+        user_context: security.DecryptedToken = Depends(Authorization)
+    ):
+    """
+    Mints an entity (commits to database with ownership).
+    Only iteration #0 (genesis) can be minted.
+    Ownership is set to the minting user, and further editing is disabled.
+    """
+    client_host = request.client.host
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=10, WINDOW=60):
+        return ServerOkayResponse(
+            message='ERROR',
+            db_health={"message": "Rate Limit Exceeded"}
+        )
+    
+    _xpos, _ypos, _zone, _iter = ([int(n) for n in [payload.x_pos, payload.y_pos, payload.zone, payload.iter]])
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Fetch current entity state from database
+            response = await client.post(
+                DB_SERVER + "/expand",
+                headers={"X-API-Key": DB_KEY},
+                timeout=5.0,
+                json={
+                    'x': _xpos, 'y': _ypos, 'z': _zone, 'i': _iter
+                }
+            )
+
+            if response.status_code != status.HTTP_200_OK:
+                return ServerOkayResponse(
+                    message="ERROR",
+                    db_health={"message": f"Failed to fetch entity: {response.status_code}"}
+                )
+
+            data = response.json()
+            entities = data['entities']
+
+            # Extract existing entity or create genesis
+            if entities:
+                entity_to_mint = entities[0]  # Get the genesis entity
+            else:
+                entity_to_mint = databases.entity_genesis(_xpos, _ypos, _zone)
+
+            # Validate ownership (must be unowned or owned by current user)
+            current_owner = entity_to_mint.get('ownership')
+            ThrowIf(
+                current_owner and current_owner != user_context.ID,
+                "You do not own this entity",
+                status.HTTP_403_FORBIDDEN
+            )
+
+            # Check if already minted
+            ThrowIf(
+                entity_to_mint.get('minted') == True,
+                "Entity is already minted",
+                status.HTTP_400_BAD_REQUEST
+            )
+
+            # Apply ownership and mint status
+            entity_to_mint['ownership'] = user_context.ID
+            entity_to_mint['minted'] = True
+            entity_to_mint['timestamp'] = time.time()
+
+            # Commit to database
+            set_response = await client.post(
+                DB_SERVER + f"/set/{_zone}",
+                headers={"X-API-Key": DB_KEY},
+                timeout=5.0,
+                json=entity_to_mint
+            )
+
+            if set_response.status_code != status.HTTP_200_OK:
+                return ServerOkayResponse(
+                    message="ERROR",
+                    db_health={"message": "Failed to commit entity to database"}
+                )
+
+            # Determine if this is the latest iteration
+            all_iters = [int(ent.get('iter', 0)) for ent in entities] if entities else []
+            iter_is_latest = _iter == max(all_iters) if all_iters else True
+
+            # Return updated entity view
+            return {
+                'message': 'OK',
+                'x': _xpos,
+                'y': _ypos,
+                'z': _zone,
+                'entity': {_iter: entity_to_mint},
+                'intended_iter': _iter,
+                'iter_is_latest': iter_is_latest,
+                'user_context': user_context,
+                'banner': databases.ZONE_COLORS[_zone]
+            }
+
+    except httpx.ConnectError:
+        return ServerOkayResponse(
+            message="ERROR",
+            db_health={"message": "Database server unreachable"}
+        )
+
 @server.post('/api/render/one')
 async def provide_single_render(
         request: Request, 
@@ -405,10 +509,7 @@ async def provide_single_render(
             db_health={"message": "Rate Limit Exceeded"}
         )
     
-    _xpos=int(payload.x_pos)
-    _ypos=int(payload.y_pos)
-    _zone=int(payload.zone)
-    _iter=int(payload.iter)
+    _xpos, _ypos, _zone, _iter = ([int(n) for n in [payload.x_pos, payload.y_pos, payload.zone, payload.iter]])
 
     try:
         async with httpx.AsyncClient() as client:
@@ -417,10 +518,7 @@ async def provide_single_render(
                 headers={"X-API-Key": DB_KEY},
                 timeout=5.0,
                 json={
-                    'x': _xpos,
-                    'y': _ypos,
-                    'z': _zone,
-                    'i': _iter  # intended_iter
+                    'x': _xpos, 'y': _ypos, 'z': _zone, 'i': _iter  # intended_iter
                 }
             )
 

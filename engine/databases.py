@@ -298,7 +298,7 @@ class Blacklist:
 def normalize_entity(ent: dict, z: int) -> dict:
     '''Adds exists to entity dict outputs'''
     ent["exists"] = True
-    ent["PositionZ"] = z
+    ent["positionZ"] = z
     return ent
 
 def entity_genesis(

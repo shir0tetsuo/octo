@@ -13,7 +13,7 @@ const container = document.getElementById('container');
 
 // Entity versioning system: { 0: genesis_entity, 1: updated_entity, ... }
 // Keys are iteration numbers, values are entity data objects from the server
-let entity;
+var entity;
 
 // Redirect URL from query params - where to go when user clicks "Return"
 let redirect;
@@ -86,7 +86,7 @@ function safeExit() {
  * @param {string} apikey - Optional API key for authenticated requests
  * @returns {Promise} jQuery AJAX promise
  */
-function RenderFactory(url, x, y, z, i, apikey=null) {
+function Factory(url, x, y, z, i, apikey=null) {
     return $.ajax({
         type: "POST",
         url: url,
@@ -386,12 +386,52 @@ function applyChannelAnimation(pad, bar) {
     }
 }
 
-/**
- * Placeholder for mint action confirmation.
- * TODO: Implement actual minting logic (API call to commit entity to DB)
- */
-function testOK() {
-    console.log('OK!')
+function handleMint(res) {
+    _toggle(false, 'loading');
+    console.log(res);
+    if (res?.entity) {
+        entity = res.entity;
+        
+        // Update user context if provided
+        if (res.user_context) {
+            user_context = res.user_context;
+        }
+        
+        // Re-render the card with updated state
+        renderCurrentCard();
+        
+        // Update mint icon to show filled coin (minted state)
+        const mint_element = document.querySelector('.mintshim');
+        if (mint_element && entity[currentIter].minted === true) {
+            mint_element.innerHTML = '<i class="ri-copper-coin-fill"></i>';
+        }
+        
+        launch_error_toast('Entity minted successfully!');
+    } else {
+        console.warn('Server did not respond with entity.');
+        launch_error_toast(res?.db_health?.message || "Unexpected error occurred.");
+    }
+}
+
+function mintRequest() {
+    _toggle(true, 'loading')
+    const e = entity[currentIter]
+    const apiKey = getApiKeyFromCookie();
+    Factory("https://octo.shadowsword.ca/api/mint", e.positionX, e.positionY, e.positionZ, currentIter, apiKey)
+    .done(function (res) {
+        handleMint(res)
+    })
+    .fail(function () {
+        Factory("http://localhost:9300/api/mint", e.positionX, e.positionY, e.positionZ, currentIter, apiKey)
+        .done(function (res) {
+            handleMint(res)
+        })
+        .fail(function () {
+            _toggle(false, 'loading')
+            launch_error_toast('No server reachable.')
+            console.warn('Server Com Failure')
+        })
+    })
 }
 
 /**
@@ -511,7 +551,8 @@ function buildCard(entity_data, key) {
     mint_shim.onclick = () => showMintControl();
     mint_shim.className = "glyph-slot holoshim mintshim";
     mint_shim.style.setProperty("font-size", "30px");
-    if (entity_data.minted == true) {
+    mint_shim.id = 'mint_shim';
+    if ((entity_data.minted == true) && (entity_data.exists == true) ) {
         mint_shim.innerHTML = '<i class="ri-copper-coin-fill"></i>'; // Filled = minted
     } else {
         mint_shim.innerHTML = '<i class="ri-copper-coin-line"></i>' // Outline = not minted
@@ -533,13 +574,13 @@ function buildCard(entity_data, key) {
         ?.match(/\d+/)?.[0];
     const isLevel = level ? Number(level) : 0 ;
 
-    console.log(`DEBUG: owner: ${user_is_owner}, minted: ${entity_data.minted}, level: ${isLevel}, iter: ${currentIter} & ${entity_data.iter}, total_iterations: ${Object.keys(entity).length}`);
+    console.log(`DEBUG: owner: ${user_is_owner} (Decrypted: ${user_context.decryption_success}), minted: ${entity_data.minted}, level: ${isLevel}, iter: ${currentIter} & ${entity_data.iter}, total_iterations: ${Object.keys(entity).length}`);
     
     // Mint conditions:
     // 1. User must be the owner
     // 2. Entity must NOT be minted yet (iteration #0 only)
     // 3. User must be authenticated (decryption_success)
-    const mint_request_ctrl = (user_is_owner && (entity_data.minted == false) && user_context.decryption_success) ? '<a onclick="testOK()"><i class="ri-copper-coin-fill"></i> Mint</a> ' : ''
+    const mint_request_ctrl = (user_is_owner && (entity_data.minted == false) && user_context.decryption_success) ? '<a onclick="mintRequest()"><i class="ri-copper-coin-fill"></i> Mint</a> ' : ''
     mint_ctrl.innerHTML = '<i class="ri-alert-line"></i> ' + mint_request_ctrl + '<a><i class="ri-function-add-line"></i> New</a>'
     mint_shim.append(mint_ctrl);
     
@@ -641,15 +682,15 @@ function renderCurrentCard() {
  * @param {Object} res - Complete server response with entity, user_context, banner
  */
 function handleSuccess(res) {
+    console.log(res);
     if (res?.entity) {
         // Update global state
         user_context = res.user_context;
-        ChangeUserNav(res)
-        populateContainer(res)
-        illuminate(res)
-        _toggle(false, 'loading')
-        _toggle(false, 'skeletonloading')
-        console.log(res)
+        ChangeUserNav(res);
+        populateContainer(res);
+        illuminate(res);
+        _toggle(false, 'loading');
+        _toggle(false, 'skeletonloading');
     } else {
         console.warn('Server did not respond with entity.')
         launch_error_toast(res?.db_health?.message || "Unexpected error occurred.")
@@ -716,13 +757,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // ──── Fetch Entity Data ─────────────────────────────────────────────────
     // Try production server first, fallback to localhost for development
-    RenderFactory("https://octo.shadowsword.ca/api/render/one", xpos, ypos, zone, ITER, apiKey)
+    Factory("https://octo.shadowsword.ca/api/render/one", xpos, ypos, zone, ITER, apiKey)
     .done(function (res) {
         handleSuccess(res);
     })
     .fail(function () {
         // Production failed - try local dev server
-        RenderFactory("http://localhost:9300/api/render/one", xpos, ypos, zone, ITER, apiKey)
+        Factory("http://localhost:9300/api/render/one", xpos, ypos, zone, ITER, apiKey)
         .done(function (res) {
             handleSuccess(res);
         })
