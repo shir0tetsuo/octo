@@ -160,13 +160,43 @@
 
         <script type="text/javascript">
 
-            const container = document.getElementById('container');
-            let entity;
-            let redirect;
-            let currentIter = null;
-            var activeFace = 'main';
-            //var selected = 0;
+            // ============================================================================
+            // OCTO ENTITY VIEWER - Frontend Display Logic
+            // ============================================================================
+            // This page displays a single "Entity" which is a versioned object stored in
+            // a spatial database. Entities exist at coordinates (x, y, zone) and can have
+            // multiple iterations/versions. Iteration #0 is the genesis version that must
+            // be minted (committed to DB) before additional iterations can be created.
+            // ============================================================================
 
+            // ──── Global State Variables ────────────────────────────────────────────────
+            const container = document.getElementById('container');
+            
+            // Entity versioning system: { 0: genesis_entity, 1: updated_entity, ... }
+            // Keys are iteration numbers, values are entity data objects from the server
+            let entity;
+            
+            // Redirect URL from query params - where to go when user clicks "Return"
+            let redirect;
+            
+            // User authentication context from server (ID, permissions, decryption_success)
+            let user_context;
+            
+            // Currently displayed iteration number (0, 1, 2, etc.)
+            // null = no entity loaded yet
+            let currentIter = null;
+            
+            // Controls which side of the card is visible: 'main' (front) or other tools
+            // When switched, card_main is hidden and datasurface shows the tool view
+            var activeFace = 'main';
+
+            
+            /**
+             * Continuously updates a timestamp element to show elapsed time since entity creation.
+             * Uses requestAnimationFrame for smooth updates without blocking.
+             * Format: Xd:Xh:Xm:Xs (days:hours:minutes:seconds)
+             * @param {HTMLElement} e - Element with data-ts attribute (Unix timestamp in seconds)
+             */
             function updateTS(e) {
                 if (!e) return;
 
@@ -190,6 +220,7 @@
             }
 
             function safeRedirect(path) {
+                // Prevent open redirects by only allowing relative paths starting with /
                 if (path && path.startsWith("/") && !path.startsWith("//")) {
                     window.location.href = path;
                 } else {
@@ -198,11 +229,24 @@
             };
 
             function safeExit() {
+                // Navigate back to redirect URL or default to index
                 const params = new URLSearchParams(window.location.search);
                 const redirectTo = params.get("redirect") || "./index.html";
                 safeRedirect(redirectTo);
             };
 
+            /**
+             * Makes AJAX request to fetch entity data from the server.
+             * Called on page load and when navigating between iterations.
+             * 
+             * @param {string} url - API endpoint (fe_server /api/render/one)
+             * @param {number} x - X coordinate in the spatial map
+             * @param {number} y - Y coordinate in the spatial map
+             * @param {number} z - Zone ID (0-7, 8 total zones)
+             * @param {number} i - Desired iteration number to display
+             * @param {string} apikey - Optional API key for authenticated requests
+             * @returns {Promise} jQuery AJAX promise
+             */
             function RenderFactory(url, x, y, z, i, apikey=null) {
                 return $.ajax({
                     type: "POST",
@@ -216,6 +260,7 @@
             }
 
             function shuffle(array) {
+                // Fisher-Yates shuffle algorithm for randomizing color order
                 for (let i = array.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [array[i], array[j]] = [array[j], array[i]];
@@ -223,15 +268,32 @@
                 return array;
             }
 
+            /**
+             * Sets CSS variables for zone color palette.
+             * Each zone has a unique set of colors (banner array) that define the visual theme.
+             * These colors are applied to card animations and visual elements.
+             * 
+             * @param {Object} res - Server response containing banner color array
+             */
             function illuminate(res) {
+                // Shuffle the color array to add visual variation
                 b = shuffle(res.banner);
                 b.forEach((value, i) => {
                     document.documentElement.style.setProperty(`--banner-channel-${i}`, value);
                 });
             }
 
-            // Card front/back facing toggle
+            // ──── Card Flip Mechanism ────────────────────────────────────────────────────
+            // The entity card has two sides:
+            // - Front (card_main): Displays entity name, description, glyphs, timestamp
+            // - Back (datasurface): Dynamically populated with tool views (edit, history, etc)
 
+            /**
+             * Toggle visibility of a DOM element (show/hide).
+             * 
+             * @param {boolean|undefined} b - true=show, false=hide, undefined=toggle
+             * @param {string} layer - Element ID to toggle
+             */
             function _toggle(b, layer) {
                 const d = document.getElementById(layer);
                 if (b !== undefined) { 
@@ -241,13 +303,20 @@
                 }
             }
 
+            /**
+             * Swaps between card front (main entity view) and back (tool views).
+             * Clears datasurface before switching to prepare for new tool content.
+             * 
+             * @param {string} active - Tool name: 'rm', 'edit', 'history', 'owner', etc
+             */
             function cardSwap(active) {
-                // Remove any previous datasurface layer
+                // Remove any previous datasurface content to prevent stale data
                 const d = document.getElementById('datasurface');
                 d.innerHTML = '';
 
                 const c = document.getElementById('card_main');
                 if (active == activeFace) {
+                    // Same tool clicked again - toggle back to front
                     if (c.style.display === 'none') {
                         _toggle(true, 'card_main');
                         _toggle(false, 'datasurface');
@@ -256,17 +325,24 @@
                         _toggle(true, 'datasurface');
                     }
                 } else {
+                    // Different tool clicked - switch to new tool view
                     _toggle(false, 'card_main');
                     _toggle(true, 'datasurface');
                     activeFace = active
                 }
-                // Element displays not controlled here
             }
 
+            /**
+             * Highlights the active tool button in the top toolbar.
+             * Only shows highlight when datasurface (back side) is visible.
+             * 
+             * @param {string} nav_name - Tool button ID to highlight
+             */
             function underline_tool_nav(nav_name) {
                 const navs = ['nav_tools_rm', 'nav_tools_edit', 'nav_tools_history', 'nav_tools_id'];
                 const c = document.getElementById('card_main');
                 if (c.style.display === 'none') {
+                    // Back side is showing - highlight the active tool
                     for (const n in navs) {
                         if (navs[n] === nav_name) {
                             d = document.getElementById(nav_name);
@@ -277,6 +353,7 @@
                         }
                     }
                 } else {
+                    // Front side is showing - clear all highlights
                     for (const n in navs) {
                         d = document.getElementById(navs[n])
                         d.className = ''
@@ -284,10 +361,16 @@
                 }
             }
 
+            /**
+             * Displays removal interface for the entity.
+             * Genesis iteration (#0) cannot be removed (only minted).
+             * Future/TODO: Only the latest iteration in the stack may be removed.
+             */
             function showCardRm() {
                 cardSwap('rm');
                 underline_tool_nav('nav_tools_rm');
                 if (currentIter == 0) {
+                    // Genesis card - show prohibition message
                     const char_quote = '<i class="ri-prohibited-line"></i> ';
                     const char_quote_long = ' '+char_quote;
                     var description = "Removal not allowed; Genesis #0 cannot be removed, only minted";
@@ -312,46 +395,86 @@
                 // as only the last card in the stack may be removed. TODO
             }
 
+            /**
+             * Displays edit interface for the entity.
+             * TODO: Implement edit form (only available for unminted or owned entities)
+             */
             function showCardEdit() {
                 cardSwap('edit');
                 underline_tool_nav('nav_tools_edit');
             }
 
+            /**
+             * Displays history of all entity iterations.
+             * Shows version timeline and allows jumping between iterations.
+             * TODO: Implement history view
+             */
             function showCardHistory() {
                 cardSwap('history');
                 underline_tool_nav('nav_tools_history');
             }
 
+            /**
+             * Displays ownership information and user permissions.
+             * Shows who owns the entity and what actions are available.
+             * TODO: Implement owner view
+             */
             function showCardOwner() {
                 cardSwap('owner');
                 underline_tool_nav('nav_tools_id');
             }
 
+            /**
+             * Toggles visibility of mint control menu on the card.
+             * Minting options:
+             * - Mint: Commit genesis (#0) to database (requires ownership)
+             * - New: Create next iteration (#1, #2, etc) after genesis is minted
+             */
             function showMintControl() {
-                // should display "Mint" and "Create" options.
                 m = document.getElementById('mint_control');
                 m.style.display = (m.style.display === 'block') ? 'none' : 'block';
             }
 
-            // (End front/back toggle)
+            // ──── Navigation & URL Management ────────────────────────────────────────────
 
+            /**
+             * Updates the user login/profile navigation based on authentication status.
+             * Shows user ID if authenticated, login button if not.
+             * 
+             * @param {Object} res - Server response with user_context
+             */
             function ChangeUserNav(res) {
                 nav = document.getElementById('user-login-nav');
                 if (res.user_context.decryption_success) {
+                    // User authenticated - show their ID (first segment of UUID)
                     redirect = encodeURIComponent(window.location.pathname + window.location.search);
                     nav.href = 'user.html?redirect=' + redirect; // This will point to the user page
                     nav.innerHTML = '<i class="ri-passport-fill"></i> ' + String(res.user_context.ID).split('-')[0];
                 } else {
+                    // User not authenticated - show login button
                     nav.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
                 }
             }
             
+            /**
+             * Updates area navigation link to return to area view with current state.
+             */
             function ChangeAreaNav() {
                 nav = document.getElementById('area-nav');
                 redirect = encodeURIComponent(window.location.pathname + window.location.search);
                 nav.href = 'area.html?redirect=' + redirect;
             }
 
+            /**
+             * Updates browser URL without reloading page to reflect current entity location.
+             * Format: ?xyzi=x,y,z,iter&redirect=url
+             * 
+             * @param {number} x - X coordinate
+             * @param {number} y - Y coordinate
+             * @param {number} z - Zone ID
+             * @param {number} i - Iteration number
+             * @param {string} redirect - Return URL for navigation
+             */
             function normalizeURL(x,y,z,i,redirect) {
                 const params = new URLSearchParams();
 
@@ -363,16 +486,36 @@
                 window.history.replaceState({}, "", newURL);
             }
 
+            /**
+             * Validates and converts a value to non-negative number.
+             * Used for parsing URL coordinates and iteration numbers.
+             * 
+             * @param {*} value - Value to convert
+             * @param {number} fallback - Default if conversion fails
+             * @returns {number} Valid non-negative number or fallback
+             */
             function nonNegativeNumber(value, fallback) {
                 const v = Number(value);
                 return Number.isFinite(v) && v >= 0 ? v : fallback;
             }
             
+            /**
+             * Retrieves API key from browser cookies.
+             * API key authenticates requests to protected endpoints.
+             * 
+             * @returns {string|null} API key or null if not found
+             */
             function getApiKeyFromCookie() {
                 const match = document.cookie.match(/(?:^|; )X-API-Key=([^;]*)/);
                 return match ? decodeURIComponent(match[1]) : null;
             }
 
+            /**
+             * Displays error notification toast at bottom of screen.
+             * Auto-dismisses after 5 seconds.
+             * 
+             * @param {string} error_text - Error message to display
+             */
             function launch_error_toast(error_text) {
                 var t = document.getElementById("error_toast")
                 var d = document.getElementById("error_desc")
@@ -381,6 +524,14 @@
                 setTimeout(function(){ t.className = t.className.replace("show", ""); }, 5000);
             }
 
+            /**
+             * Applies zone color palette to card element for CSS animations.
+             * Each entity has 8 color channels (from aesthetics.bar) that drive visual effects.
+             * Channels 0-3 are used for background animations, all 8 for full palette.
+             * 
+             * @param {HTMLElement} pad - Element to apply colors to
+             * @param {Object} bar - Color channel object {channel_0: '#...', ...}
+             */
             function applyChannelAnimation(pad, bar) {
                 if (!bar || typeof bar !== "object") return;
 
@@ -390,18 +541,35 @@
                     pad.style.setProperty(`--c${i}`, c);
                 });
 
-                // First 4 drive the background animation
+                // Primary animation colors (uses first 4 channels)
                 for (let i = 0; i < 4; i++) {
                     pad.style.setProperty(`--ch-${i}`, channels[i % channels.length]);
                 }
             }
 
+            /**
+             * Placeholder for mint action confirmation.
+             * TODO: Implement actual minting logic (API call to commit entity to DB)
+             */
             function testOK() {
                 console.log('OK!')
             }
 
+            /**
+             * Dynamically constructs the complete card DOM element from entity data.
+             * Handles:
+             * - Entity content (name, description, glyphs, timestamp)
+             * - Tool buttons and navigation
+             * - Color animations and visual styling
+             * - Mint control for genesis cards
+             * 
+             * @param {Object} entity_data - Single iteration of entity from server
+             * @param {number} key - Iteration number (0, 1, 2, etc)
+             * @returns {HTMLElement} Complete card wrapper ready to insert into DOM
+             */
             function buildCard(entity_data, key) {
-                // Extend description length
+                // Pad description with decorative quotes to reach ~1500 chars
+                // This creates a visually full card face
                 const char_quote = '<i class="ri-chat-quote-line"></i> ';
                 const char_quote_long = ' '+char_quote;
                 var description = entity_data.description;
@@ -438,19 +606,22 @@
                 tools_user.innerHTML = `<span onclick="showCardOwner()"><i class="ri-user-fill"></i> ${ownership.split('-')[0]}</span>`;
 
                 // card setup
+                // Card front (main entity view)
                 const card = document.createElement("div");
                 card.className = "card specular";
                 card.id = "card_main";
 
+                // Card back (tool views - edit, history, owner, remove)
                 const data_surface = document.createElement("div");
                 data_surface.className = "card";
-                data_surface.style.setProperty("display", "none");
+                data_surface.style.setProperty("display", "none"); // Hidden until tool clicked
                 data_surface.id = "datasurface";
                 
+                // Extract zone color palette and apply primary color (channel 7 = darkest/primary)
                 const bar_colors = entity_data.aesthetics?.bar;
                 const channels = Object.values(bar_colors);
                 card.style.setProperty("--spec-channel", channels[7]);
-                // TODO Maybe a darkened version of the color for the bg element instead of gray?
+                // TODO: Use darkened version of primary color for better contrast
                 
                 const iter_number = document.createElement("div");
                 iter_number.className = "iter-number";
@@ -496,23 +667,41 @@
                 const bottom = document.createElement("div");
                 bottom.className = "glyph-bottom bottomElements";
 
+                // Mint indicator (coin icon) - shows whether entity has been committed to DB
                 const mint_shim = document.createElement("div");
                 mint_shim.onclick = () => showMintControl();
                 mint_shim.className = "glyph-slot holoshim mintshim";
                 mint_shim.style.setProperty("font-size", "30px");
                 if (entity_data.minted == true) {
-                    mint_shim.innerHTML = '<i class="ri-copper-coin-fill"></i>';
+                    mint_shim.innerHTML = '<i class="ri-copper-coin-fill"></i>'; // Filled = minted
                 } else {
-                    mint_shim.innerHTML = '<i class="ri-copper-coin-line"></i>'
+                    mint_shim.innerHTML = '<i class="ri-copper-coin-line"></i>' // Outline = not minted
                 }
                 mint_shim.style.setProperty("--from", "#fff")
                 mint_shim.style.setProperty("--to", "#8e8e8e")
 
-                // TODO Prototype - not finished product.
+                // Mint control menu (appears when coin is clicked)
+                // TODO: Implement actual mint and create new iteration functionality
                 const mint_ctrl = document.createElement("div");
                 mint_ctrl.className = 'extrude';
                 mint_ctrl.id = 'mint_control';
-                mint_ctrl.innerHTML = '<i class="ri-alert-line"></i> <a onclick="testOK()"><i class="ri-copper-coin-fill"></i> Mint</a> <a><i class="ri-function-add-line"></i> New</a>'
+                
+                const user_is_owner = ((entity_data.ownership ?? user_context.ID) == user_context.ID);
+                
+                // Extract user permission level from encrypted token
+                const level = user_context.data
+                    .find(v => typeof v === 'string' && v.startsWith('isLevel'))
+                    ?.match(/\d+/)?.[0];
+                const isLevel = level ? Number(level) : 0 ;
+
+                console.log(`DEBUG: owner: ${user_is_owner}, minted: ${entity_data.minted}, level: ${isLevel}, iter: ${currentIter} & ${entity_data.iter}, total_iterations: ${Object.keys(entity).length}`);
+                
+                // Mint conditions:
+                // 1. User must be the owner
+                // 2. Entity must NOT be minted yet (iteration #0 only)
+                // 3. User must be authenticated (decryption_success)
+                const mint_request_ctrl = (user_is_owner && (entity_data.minted == false) && user_context.decryption_success) ? '<a onclick="testOK()"><i class="ri-copper-coin-fill"></i> Mint</a> ' : ''
+                mint_ctrl.innerHTML = '<i class="ri-alert-line"></i> ' + mint_request_ctrl + '<a><i class="ri-function-add-line"></i> New</a>'
                 mint_shim.append(mint_ctrl);
                 
                 const glyphs = Object.values(entity_data.aesthetics?.glyphs || {});
@@ -565,10 +754,19 @@
                 return wrapper;
             }
 
-            // initial populate
+            // ──── Content Loading & Rendering ────────────────────────────────────────────
+
+            /**
+             * Initializes page state from server response.
+             * Stores entity version history and sets up display.
+             * 
+             * @param {Object} res - Server response {entity: {0: {...}, 1: {...}}, intended_iter: 0}
+             */
             function populateContainer(res) {
+                // Store all iterations of the entity (version history)
                 entity = res.entity;
 
+                // Set current display to the intended iteration (usually latest)
                 const intended_iter = Number(res.intended_iter);
                 currentIter = Number.isFinite(intended_iter) ? intended_iter : null;
 
@@ -576,6 +774,10 @@
                 renderCurrentCard();
             }
 
+            /**
+             * Renders the currently selected iteration into the page.
+             * Fetches entity data at currentIter and builds the card DOM.
+             */
             function renderCurrentCard() {
                 if (!entity || currentIter === null) {
                     launch_error_toast('No entity loaded.');
@@ -586,14 +788,23 @@
                 if (data) {
                     container.innerHTML = '';
                     container.appendChild(buildCard(data, currentIter));
+                    // Update URL bar to reflect current location
                     normalizeURL(data.positionX, data.positionY, data.positionZ, data.iter, redirect ?? 'area.html')
                 } else {
                     launch_error_toast('No card available for this iteration.');
                 }
             }
 
+            /**
+             * Processes successful API response and renders the entity.
+             * Handles authentication state, user nav, and page styling.
+             * 
+             * @param {Object} res - Complete server response with entity, user_context, banner
+             */
             function handleSuccess(res) {
                 if (res?.entity) {
+                    // Update global state
+                    user_context = res.user_context;
                     ChangeUserNav(res)
                     populateContainer(res)
                     illuminate(res)
@@ -604,13 +815,16 @@
                     console.warn('Server did not respond with entity.')
                     launch_error_toast(res?.db_health?.message || "Unexpected error occurred.")
                 }
-
             }
 
+            // ──── Page Initialization ────────────────────────────────────────────────────
+
             document.addEventListener("DOMContentLoaded", function () {
-                // Setup;
+                // Retrieve API key for authenticated requests
                 const apiKey = getApiKeyFromCookie();
-                // Navigation handlers for Back / Continue
+                
+                // ──── Iteration Navigation Handlers ─────────────────────────────────────
+                // "Back" button: Jump to previous iteration (if exists)
                 const backBtn = document.getElementById('x_minus');
                 const nextBtn = document.getElementById('x_plus');
 
@@ -641,35 +855,44 @@
                         }
                     });
                 }
-                // Get params from location
+                
+                // ──── Parse URL Parameters ──────────────────────────────────────────────
+                // Expected format: ?xyzi=x,y,z,iter&redirect=url
                 const params = new URLSearchParams(window.location.search);
                 const xyzi = (params.get('xyzi') ?? '0,0,0,0').split(',');
                 redirect = params.get('redirect');
+                
+                // Extract coordinates (validate as non-negative integers)
                 const xpos = Math.floor(nonNegativeNumber(xyzi[0] ?? 0, 0));
                 const ypos = Math.floor(nonNegativeNumber(xyzi[1] ?? 0, 0));
                 // Enforce [0,1,2,3,4,5,6,7] # 8 Zones
                 const zone = Math.min(7, Math.max(0, Math.floor(nonNegativeNumber(xyzi[2] ?? 0, 0))));
+                
+                // Iteration to display
                 const ITER = Math.floor(nonNegativeNumber(xyzi[3] ?? 0, 0));
 
-                normalizeURL(xpos, ypos, zone, ITER, redirect ?? 'area.html'); // TODO Normalize nav for next/prev iter
+                // Normalize URL with validated parameters
+                normalizeURL(xpos, ypos, zone, ITER, redirect ?? 'area.html');
                 ChangeAreaNav();
 
+                // ──── Fetch Entity Data ─────────────────────────────────────────────────
+                // Try production server first, fallback to localhost for development
                 RenderFactory("https://octo.shadowsword.ca/api/render/one", xpos, ypos, zone, ITER, apiKey)
                 .done(function (res) {
-                    handleSuccess(res)
+                    handleSuccess(res);
                 })
                 .fail(function () {
+                    // Production failed - try local dev server
                     RenderFactory("http://localhost:9300/api/render/one", xpos, ypos, zone, ITER, apiKey)
                     .done(function (res) {
-                        handleSuccess(res)
+                        handleSuccess(res);
                     })
                     .fail(function () {
-                        launch_error_toast('No server reachable.')
-                        console.warn('Server Com Failure')
-                    })
-                })
-
-            })
+                        launch_error_toast('No server reachable.');
+                        console.warn('Server Com Failure');
+                    });
+                });
+            });
 
 
 
