@@ -5,6 +5,20 @@ function showHiddenButton(data) {
 }
 
 /**
+ * Displays error notification toast at bottom of screen.
+ * Auto-dismisses after 5 seconds.
+ * 
+ * @param {string} error_text - Error message to display
+ */
+function launch_error_toast(error_text) {
+    var t = document.getElementById("error_toast")
+    var d = document.getElementById("error_desc")
+    t.className = "show";
+    d.innerText = error_text;
+    setTimeout(function(){ t.className = t.className.replace("show", ""); }, 5000);
+}
+
+/**
  * Toggle visibility of a DOM element (show/hide).
  * 
  * @param {boolean|undefined} b - true=show, false=hide, undefined=toggle
@@ -66,10 +80,17 @@ function doHealthPost() {
                     //updateStatus(data, "Local");
                 },
                 error: function () {
-                    c = document.getElementById('card-main');
-                    c.style.setProperty('--spec-channel', '#494949ff');
-                    document.getElementById("loadingstatus").textContent =
-                        "No server reachable";
+                    console.error('Server Com Failure')
+                    
+                    description = 'Server unreachable.'
+                    const char_quote = '<i class="ri-signal-wifi-error-line"></i> ';
+                    const char_quote_long = ' '+char_quote;
+                    while (description.replaceAll(char_quote_long, '').length < 1500) {
+                        description = description + char_quote_long + description;
+                    }
+                    document.getElementById("description").innerHTML =
+                        `${description}`;
+                    launch_error_toast('Server unreachable. Try refresh.')
                 }
             });
         }
