@@ -60,7 +60,7 @@ class HelloResponse(BaseModel):
     ID : str
 
 class EntityIn(BaseModel):
-    index: int = Field(..., description="Location ID")
+    index: Optional[int] = Field(None, description="Entity Unique (auto-generated if not provided)")
     iter: int = Field(..., description="Version Iteration Number")
     uuid: str
     state: int
@@ -72,7 +72,7 @@ class EntityIn(BaseModel):
     aesthetics: Dict[str, Any] | str = Field(default_factory=dict, description="JSON object or string")
     ownership: str
     minted: bool
-    timestamp: int
+    timestamp: float
 
 class RangeQuery(BaseModel):
     min_x: int
@@ -135,6 +135,24 @@ def Authorization(api_key = Depends(api_key_header)) -> security.DecryptedToken:
 
 # Entity Routes ───────────────────────────
 
+@server.get("/get_max_index/{zone}", dependencies=[Depends(Authorization)])
+async def get_max_index(zone: int):
+    """Get the highest index number in a zone to auto-generate next index."""
+    global ZONES
+    ThrowIf(zone not in ZONES, f"Invalid zone ID: {zone}", status.HTTP_400_BAD_REQUEST)
+    
+    store = ZONES[zone]
+    # Query database for max index in this zone
+    async with store._conn() as conn:
+        cursor = await anyio.to_thread.run_sync(
+            conn.execute,
+            'SELECT MAX("index") FROM entities'
+        )
+        row = cursor.fetchone()
+        max_index = row[0] if row and row[0] is not None else 0
+    
+    return {"max_index": max_index}
+
 @server.post("/set/{zone}", dependencies=[Depends(Authorization)])
 async def set_entity(zone: int, entity: EntityIn):
     """Upsert an entity version into a specific zone."""
@@ -142,8 +160,40 @@ async def set_entity(zone: int, entity: EntityIn):
     ThrowIf(zone not in ZONES, f"Invalid zone ID: {zone}", status.HTTP_400_BAD_REQUEST)
     
     store = ZONES[zone]
-    await store.set(entity.model_dump())
-    return {"status": "queued", "id": f"{entity.index}v{entity.iter}"}
+    entity_dict = entity.model_dump()
+    
+    Tee.log(f"[/set/{zone}] Received entity: {entity_dict}")
+    
+    # Auto-generate index if not provided
+    if entity_dict['index'] is None:
+        async with store._conn() as conn:
+            cursor = await anyio.to_thread.run_sync(
+                conn.execute,
+                'SELECT MAX("index") FROM entities'
+            )
+            row = cursor.fetchone()
+            max_index = row[0] if row and row[0] is not None else 0
+            entity_dict['index'] = max_index + 1
+        Tee.log(f"[/set/{zone}] Auto-generated index: {entity_dict['index']}")
+    
+    await store.set(entity_dict)
+    
+    # Fetch and return the full entity stack for this index
+    all_iterations = await store.get_iters_of_one(
+        entity_dict['positionX'],
+        entity_dict['positionY'],
+        entity_dict['iter']
+    )
+    
+    response_data = {
+        "status": "ok",
+        "id": f"{entity_dict['index']}v{entity_dict['iter']}",
+        "index": entity_dict['index'],
+        "entities": all_iterations.get('entities', []),
+        "is_latest_on_file": all_iterations.get('is_latest_on_file', False)
+    }
+    Tee.log(f"[/set/{zone}] Returning {len(all_iterations.get('entities', []))} entities")
+    return response_data
 
 # NOTE : Might be a good idea to call the "whole" group with all iters, not currently implemented
 

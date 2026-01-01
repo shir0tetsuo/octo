@@ -513,7 +513,7 @@ class EntityStore(BaseStore):
                         SELECT
                             'queue' AS src,
                             queue_id,
-                            'index', 'iter', uuid, state, name, description,
+                            "index", iter, uuid, state, name, description,
                             positionX, positionY,
                             aesthetics, ownership, minted, timestamp
                         FROM write_queue
@@ -526,14 +526,14 @@ class EntityStore(BaseStore):
                         SELECT
                             'table' AS src,
                             NULL AS queue_id,
-                            'index', 'iter', uuid, state, name, description,
+                            "index", iter, uuid, state, name, description,
                             positionX, positionY,
                             aesthetics, ownership, minted, timestamp
                         FROM entities
                         WHERE positionX=? AND positionY=?
                         {iter_filter}
                     )
-                    ORDER BY 'index', 'iter' DESC
+                    ORDER BY "index", iter DESC
                 """
 
                 params: list[int] = [x, y]
@@ -618,7 +618,7 @@ class EntityStore(BaseStore):
                 conn.execute,
                 """
                 INSERT INTO write_queue (
-                    'index', 'iter', uuid, state, name, description,
+                    "index", iter, uuid, state, name, description,
                     positionX, positionY,
                     aesthetics, ownership, minted, timestamp
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -665,11 +665,11 @@ class EntityStore(BaseStore):
                 params = []
                 
                 if iteration is not None:
-                    query_suffix = "WHERE 'index'=? AND 'iter'=?"
+                    query_suffix = "WHERE \"index\"=? AND iter=?"
                     params = (index, iteration)
                 else:
                     # Get the LATEST version for this index
-                    query_suffix = "WHERE 'index'=? ORDER BY 'iter' DESC LIMIT 1"
+                    query_suffix = "WHERE \"index\"=? ORDER BY iter DESC LIMIT 1"
                     params = (index,)
 
                 # Check Queue First (newest version)
@@ -732,7 +732,7 @@ class EntityStore(BaseStore):
 
                             conn.executemany("""
                                 INSERT OR REPLACE INTO entities (
-                                    'index', 'iter', uuid, state, name, description,
+                                    "index", iter, uuid, state, name, description,
                                     positionX, positionY,
                                     aesthetics, ownership, minted, timestamp
                                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

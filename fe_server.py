@@ -457,32 +457,59 @@ async def mint_entity(
             entity_to_mint['ownership'] = user_context.ID
             entity_to_mint['minted'] = True
             entity_to_mint['timestamp'] = time.time()
+            
+            # Remove UI flag (always remove)
+            entity_to_mint.pop('exists', None)
+            
+            # Only remove index if it's None (new genesis), let db use existing or auto-generate
+            if entity_to_mint.get('index') is None:
+                entity_to_mint.pop('index', None)
+            
+            Tee.log(f"[/api/mint] Sending to /set/{_zone}: {entity_to_mint}")
 
-            # Commit to database
+            # Commit to database (without index - db will auto-generate)
             set_response = await client.post(
                 DB_SERVER + f"/set/{_zone}",
                 headers={"X-API-Key": DB_KEY},
                 timeout=5.0,
                 json=entity_to_mint
             )
-
+            
+            Tee.log(f"[/api/mint] Response status: {set_response.status_code}")
             if set_response.status_code != status.HTTP_200_OK:
+                Tee.log(f"[/api/mint] Error response: {set_response.text}")
                 return ServerOkayResponse(
                     message="ERROR",
-                    db_health={"message": "Failed to commit entity to database"}
+                    db_health={"message": f"Failed to commit entity: {set_response.text}"}
                 )
 
+            # Get response from db_server with full entity stack and index
+            set_data = set_response.json()
+            returned_entities = set_data.get('entities', [])
+            
+            Tee.log(f"[/api/mint] set_data keys: {set_data.keys()}")
+            Tee.log(f"[/api/mint] returned_entities type: {type(returned_entities)}")
+            Tee.log(f"[/api/mint] returned_entities: {returned_entities}")
+            
+            # Build entity dict from all returned iterations
+            entity_dict = {}
+            if returned_entities:
+                for ent in returned_entities:
+                    Tee.log(f"[/api/mint] Processing ent: {ent} (type: {type(ent)})")
+                    iter_num = int(ent.get('iter', 0))
+                    entity_dict[iter_num] = databases.normalize_entity(ent, _zone)
+            
             # Determine if this is the latest iteration
-            all_iters = [int(ent.get('iter', 0)) for ent in entities] if entities else []
+            all_iters = [int(ent.get('iter', 0)) for ent in returned_entities] if returned_entities else []
             iter_is_latest = _iter == max(all_iters) if all_iters else True
 
-            # Return updated entity view
+            # Return complete entity stack with all iterations
             return {
                 'message': 'OK',
                 'x': _xpos,
                 'y': _ypos,
                 'z': _zone,
-                'entity': {_iter: entity_to_mint},
+                'entity': entity_dict if entity_dict else {_iter: entity_to_mint},
                 'intended_iter': _iter,
                 'iter_is_latest': iter_is_latest,
                 'user_context': user_context,
@@ -527,6 +554,9 @@ async def provide_single_render(
                 data = response.json()
 
                 entities = data["entities"]
+                
+                Tee.log(f"[/api/render/one] entities: {entities}")
+                Tee.log(f"[/api/render/one] entities type: {type(entities)}")
 
                 entity_normals = {
                     int(ent["iter"]): databases.normalize_entity(ent, _zone)
