@@ -440,13 +440,6 @@ function handleMint(res) {
         
         // Re-render the card with updated state
         renderCurrentCard();
-        
-        // Update mint icon to show filled coin (minted state)
-        const mint_element = document.querySelector('.mintshim');
-        if (mint_element && entity[currentIter].minted === true) {
-            mint_element.innerHTML = '<i class="ri-copper-coin-fill"></i>';
-        }
-        
         launch_toast('Entity minted successfully!');
     } else {
         console.warn('Server did not respond with entity.');
