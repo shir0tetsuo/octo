@@ -53,7 +53,7 @@ function doHealthPost() {
         dataType: "json",
         success: function (data) {
             console.log("Production");
-            updateDescription(data, "Remote server reachable");
+            updateDescription(data, "Production");
             console.log(data?.db_health);
             showHiddenButton(data);
             _toggle(false, 'loading')
