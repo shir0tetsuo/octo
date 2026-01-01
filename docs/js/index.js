@@ -81,7 +81,6 @@ function doHealthPost() {
                 },
                 error: function () {
                     console.error('Server Com Failure')
-                    
                     description = 'Server unreachable.'
                     const char_quote = '<i class="ri-signal-wifi-error-line"></i> ';
                     const char_quote_long = ' '+char_quote;
@@ -91,6 +90,7 @@ function doHealthPost() {
                     document.getElementById("description").innerHTML =
                         `${description}`;
                     launch_error_toast('Server unreachable. Try refresh.')
+                    _toggle(false, 'loading')
                 }
             });
         }
