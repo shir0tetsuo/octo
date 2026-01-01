@@ -349,6 +349,15 @@ function getApiKeyFromCookie() {
     return match ? decodeURIComponent(match[1]) : null;
 }
 
+
+function launch_toast(normal_text) {
+    var t = document.getElementById("normal_toast")
+    var d = document.getElementById("normal_desc")
+    t.className = "show";
+    d.innerText = normal_text;
+    setTimeout(function(){ t.className = t.className.replace("show", ""); }, 5000);
+};
+
 /**
  * Displays error notification toast at bottom of screen.
  * Auto-dismisses after 5 seconds.
@@ -406,7 +415,7 @@ function handleMint(res) {
             mint_element.innerHTML = '<i class="ri-copper-coin-fill"></i>';
         }
         
-        launch_error_toast('Entity minted successfully!');
+        launch_toast('Entity minted successfully!');
     } else {
         console.warn('Server did not respond with entity.');
         launch_error_toast(res?.db_health?.message || "Unexpected error occurred.");
