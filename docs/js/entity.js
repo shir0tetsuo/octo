@@ -109,27 +109,6 @@ function Factory(url, x, y, z, i, apikey=null) {
     })
 }
 
-/**
- * Makes AJAX request for new entity iter creation.
- * 
- * @param {string} url - API endpoint (fe_server /api/newiter)
- * @param {number} x - X coordinate in the spatial map
- * @param {number} y - Y coordinate in the spatial map
- * @param {number} z - Zone ID (0-7, 8 total zones)
- * @param {string} apikey - Optional API key for authenticated requests
- * @returns {Promise} jQuery AJAX promise
- */
-function NewIterFactory(url, x, y, z, i, apikey=null) {
-    return $.ajax({
-        type: "POST",
-        url: url,
-        timeout: 1500,
-        contentType: "application/json",
-        dataType: "json",
-        headers: apikey ? { "X-API-Key": apikey } : {},
-        data: JSON.stringify({ 'x_pos': x, 'y_pos': y, 'zone': z })
-    })
-}
 
 function shuffle(array) {
     // Fisher-Yates shuffle algorithm for randomizing color order
@@ -518,18 +497,19 @@ function iterRequest() {
     _toggle(true, 'loading')
     const e = entity[currentIter]
     const apiKey = getApiKeyFromCookie();
-    NewIterFactory("https://octo.shadowsword.ca/api/newiter", e.positionX, e.positionY, e.positionZ, apiKey)
+    console.log(`API KEY: ${apiKey}`)
+    Factory("https://octo.shadowsword.ca/api/newiter", e.positionX, e.positionY, e.positionZ, e.iter, apiKey)
     .done(function (res) {
-
+        console.log(res)
     })
     .fail(function () {
-        NewIterFactory("http://localhost:9300/api/newiter", e.positionX, e.positionY, e.positionZ, apiKey)
+        Factory("http://localhost:9300/api/newiter", e.positionX, e.positionY, e.positionZ, e.iter, apiKey)
         .done(function (res) {
-
+            console.log(res)
         })
         .fail(function () {
             _toggle(false, 'loading')
-            launch_error_toast('No server reachable.')
+            launch_error_toast('Something went wrong.')
             console.warn('Server Com Failure')
         })
     })
