@@ -436,9 +436,9 @@ async def iter_request(
                     db_health={"message": f"No #0 mint, not allowed"}
                 )
             
-            #last_iter = len(entities) - 1 # 0 <mint>
+            last_iter = len(entities) - 1 # 0 <mint>
             next_iter = len(entities)     # 1
-            tarot_card = listloop(tarot.deterministic_shuffle(tarot._all_cards, f'{_xpos}:{_ypos}:{_zone}'))
+            tarot_card = listloop(tarot.deterministic_shuffle(tarot._all_cards, f'{_xpos}:{_ypos}:{_zone}'), last_iter)
             new_entity = databases.entity_genesis(_xpos, _ypos, _zone)
             new_entity["iter"] = next_iter
             new_entity["name"] = tarot_card
