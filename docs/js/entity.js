@@ -471,8 +471,8 @@ function mintRequest() {
 
 function handleNewIter(res) {
     _toggle(false, 'loading');
-    console.log(res);
     if (res?.entity) {
+        // res.entity is a mapping of iteration -> entity data
         entity = res.entity;
 
         // Update user context if provided
@@ -480,13 +480,11 @@ function handleNewIter(res) {
             user_context = res.user_context;
         }
 
-        // Get the latest entity, key
+        // Get the latest iteration key and set currentIter
         const lastKey = Math.max(...Object.keys(res.entity).map(Number));
-        
-        entity = res.entity[lastKey];
-        currentIter = lastKey;
+        currentIter = Number(lastKey);
 
-        renderCurrentCard()
+        renderCurrentCard();
     } else {
         console.warn('Server did not respond with entity.');
         launch_error_toast(res?.db_health?.message || "Unexpected error occurred.");
