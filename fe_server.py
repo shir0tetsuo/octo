@@ -429,11 +429,18 @@ async def iter_request(
             data = response.json()
             entities = data['entities']
 
-            
             if not entities:
                 return ServerOkayResponse(
                     message="ERROR",
                     db_health={"message": f"No #0 mint, not allowed"}
+                )
+
+            # Require that the requester is the owner of the genesis iteration (#0)
+            genesis = entities[0] if len(entities) > 0 else None
+            if not genesis or genesis.get('ownership') != user_context.ID:
+                return ServerOkayResponse(
+                    message="ERROR",
+                    db_health={"message": "Only the owner of genesis may create new iterations."}
                 )
             
             last_iter = len(entities) - 1 # 0 <mint>
@@ -478,6 +485,9 @@ async def iter_request(
                 for ent in returned_entities:
                     iter_num = int(ent.get('iter', 0))
                     entity_dict[iter_num] = databases.normalize_entity(ent, _zone)
+
+            # User must be owner of #0 mint
+            
 
             # Determine if this is the latest iteration
             all_iters = [int(ent.get('iter', 0)) for ent in returned_entities] if returned_entities else []
