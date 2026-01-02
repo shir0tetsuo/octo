@@ -485,6 +485,7 @@ function handleNewIter(res) {
         currentIter = Number(lastKey);
 
         renderCurrentCard();
+        launch_toast("New Iteration Generation Success")
     } else {
         console.warn('Server did not respond with entity.');
         launch_error_toast(res?.db_health?.message || "Unexpected error occurred.");
