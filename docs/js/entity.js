@@ -109,6 +109,28 @@ function Factory(url, x, y, z, i, apikey=null) {
     })
 }
 
+/**
+ * Makes AJAX request for new entity iter creation.
+ * 
+ * @param {string} url - API endpoint (fe_server /api/render/one)
+ * @param {number} x - X coordinate in the spatial map
+ * @param {number} y - Y coordinate in the spatial map
+ * @param {number} z - Zone ID (0-7, 8 total zones)
+ * @param {string} apikey - Optional API key for authenticated requests
+ * @returns {Promise} jQuery AJAX promise
+ */
+function NewIterFactory(url, x, y, z, i, apikey=null) {
+    return $.ajax({
+        type: "POST",
+        url: url,
+        timeout: 1500,
+        contentType: "application/json",
+        dataType: "json",
+        headers: apikey ? { "X-API-Key": apikey } : {},
+        data: JSON.stringify({ 'x_pos': x, 'y_pos': y, 'zone': z })
+    })
+}
+
 function shuffle(array) {
     // Fisher-Yates shuffle algorithm for randomizing color order
     for (let i = array.length - 1; i > 0; i--) {
@@ -449,7 +471,7 @@ function handleMint(res) {
 
 function mintRequest() {
     _toggle(true, 'loading')
-    const e = entity[currentIter]
+    const e = entity[currentIter];
     const apiKey = getApiKeyFromCookie();
     Factory("https://octo.shadowsword.ca/api/mint", e.positionX, e.positionY, e.positionZ, currentIter, apiKey)
     .done(function (res) {
@@ -466,6 +488,52 @@ function mintRequest() {
             console.warn('Server Com Failure')
         })
     })
+}
+
+function handleNewIter(res) {
+    _toggle(false, 'loading');
+    console.log(res);
+    if (res?.entity) {
+        entity = res.entity;
+
+        // Update user context if provided
+        if (res.user_context) {
+            user_context = res.user_context;
+        }
+
+        // Get the latest entity, key
+        const lastKey = Math.max(...Object.keys(res.entity).map(Number));
+        
+        entity = res.entity[lastKey];
+        currentIter = lastKey;
+
+        renderCurrentCard()
+    } else {
+        console.warn('Server did not respond with entity.');
+        launch_error_toast(res?.db_health?.message || "Unexpected error occurred.");
+    }
+}
+
+function iterRequest() {
+    _toggle(true, 'loading')
+    const e = entity[currentIter]
+    const apiKey = getApiKeyFromCookie();
+    NewIterFactory("https://octo.shadowsword.ca/api/newiter", e.positionX, e.positionY, e.positionZ, apiKey)
+    .done(function (res) {
+
+    })
+    .fail(function () {
+        NewIterFactory("http://localhost:9300/api/newiter", e.positionX, e.positionY, e.positionZ, apiKey)
+        .done(function (res) {
+
+        })
+        .fail(function () {
+            _toggle(false, 'loading')
+            launch_error_toast('No server reachable.')
+            console.warn('Server Com Failure')
+        })
+    })
+
 }
 
 /**
@@ -601,7 +669,8 @@ function buildCard(entity_data, key) {
     mint_ctrl.className = 'extrude';
     mint_ctrl.id = 'mint_control';
     
-    const user_is_owner = ((entity_data.ownership ?? user_context.ID) == user_context.ID);
+    const user_could_be_owner = ((entity_data.ownership ?? user_context.ID) == user_context.ID);
+    const user_is_owner = (entity_data.ownership == user_context.ID)
     
     // Extract user permission level from encrypted token
     const level = user_context.data
@@ -609,14 +678,19 @@ function buildCard(entity_data, key) {
         ?.match(/\d+/)?.[0];
     const isLevel = level ? Number(level) : 0 ;
 
-    console.log(`DEBUG: owner: ${user_is_owner} (Decrypted: ${user_context.decryption_success}), minted: ${entity_data.minted}, level: ${isLevel}, iter: ${currentIter} & ${entity_data.iter}, total_iterations: ${Object.keys(entity).length}`);
+    console.log(`DEBUG: owner: ${user_could_be_owner} (Decrypted: ${user_context.decryption_success}), minted: ${entity_data.minted}, level: ${isLevel}, iter: ${currentIter} & ${entity_data.iter}, total_iterations: ${Object.keys(entity).length}`);
     
     // Mint conditions:
     // 1. User must be the owner
     // 2. Entity must NOT be minted yet (iteration #0 only)
     // 3. User must be authenticated (decryption_success)
-    const mint_request_ctrl = (user_is_owner && (entity_data.minted == false) && user_context.decryption_success) ? '<a onclick="mintRequest()"><i class="ri-copper-coin-fill"></i> Mint</a> ' : ''
-    mint_ctrl.innerHTML = '<i class="ri-alert-line"></i> ' + mint_request_ctrl + '<a><i class="ri-function-add-line"></i> New</a>'
+    const mint_request_ctrl = (user_could_be_owner && (entity_data.minted == false) && user_context.decryption_success) ? '<a onclick="mintRequest()"><i class="ri-copper-coin-fill"></i> Mint</a> ' : ''
+    const new_entity_ctrl = (user_is_owner) ? '<a onclick="iterRequest()"><i class="ri-function-add-line"></i> New</a>' : ''
+    if ((mint_request_ctrl == '') && (new_entity_ctrl == '')) {
+        mint_ctrl.innerHTML = '<i class="ri-prohibited-line"></i>'
+    } else {
+        mint_ctrl.innerHTML = '<i class="ri-alert-line"></i> ' + mint_request_ctrl + new_entity_ctrl
+    }
     mint_shim.append(mint_ctrl);
     
     const glyphs = Object.values(entity_data.aesthetics?.glyphs || {});
