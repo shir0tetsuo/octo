@@ -440,6 +440,7 @@ async def iter_request(
             next_iter = len(entities)     # 1
             tarot_card = listloop(tarot.deterministic_shuffle(tarot._all_cards, f'{_xpos}:{_ypos}:{_zone}'), last_iter)
             new_entity = databases.entity_genesis(_xpos, _ypos, _zone)
+            new_entity["ownership"] = user_context.ID
             new_entity["iter"] = next_iter
             new_entity["name"] = tarot_card
             new_entity["description"] = tarot.card_meanings.get(tarot_card, "Genesis")
