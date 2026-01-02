@@ -497,15 +497,16 @@ function iterRequest() {
     _toggle(true, 'loading')
     const e = entity[currentIter]
     const apiKey = getApiKeyFromCookie();
-    console.log(`API KEY: ${apiKey}`)
     Factory("https://octo.shadowsword.ca/api/newiter", e.positionX, e.positionY, e.positionZ, e.iter, apiKey)
     .done(function (res) {
-        console.log(res)
+        console.log(res);
+        handleNewIter(res);
     })
     .fail(function () {
         Factory("http://localhost:9300/api/newiter", e.positionX, e.positionY, e.positionZ, e.iter, apiKey)
         .done(function (res) {
-            console.log(res)
+            console.log(res);
+            handleNewIter(res);
         })
         .fail(function () {
             _toggle(false, 'loading')
