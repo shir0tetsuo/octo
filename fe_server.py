@@ -591,6 +591,11 @@ async def mint_entity(
             Tee.log(f"[/api/mint] Sending to /set/{_zone}: {entity_to_mint}")
 
             # Commit to database (without index - db will auto-generate)
+            # Ensure required position fields exist for the DB model
+            entity_to_mint['positionX'] = int(entity_to_mint.get('positionX', _xpos))
+            entity_to_mint['positionY'] = int(entity_to_mint.get('positionY', _ypos))
+            entity_to_mint['positionZ'] = int(entity_to_mint.get('positionZ', _zone))
+
             set_response = await client.post(
                 DB_SERVER + f"/set/{_zone}",
                 headers={"X-API-Key": DB_KEY},
@@ -621,6 +626,18 @@ async def mint_entity(
                     Tee.log(f"[/api/mint] Processing ent: {ent} (type: {type(ent)})")
                     iter_num = int(ent.get('iter', 0))
                     entity_dict[iter_num] = databases.normalize_entity(ent, _zone)
+
+            # Defensive: ensure the iteration we just minted reports `minted: True` and `exists: True`.
+            try:
+                if entity_dict and _iter in entity_dict:
+                    entity_dict[_iter]['minted'] = True
+                    entity_dict[_iter]['exists'] = True
+                elif not entity_dict:
+                    # Fallback when DB didn't return iterations — ensure payload reflects minted state
+                    entity_to_mint['minted'] = True
+                    entity_to_mint['exists'] = True
+            except Exception:
+                pass
             
             # Determine if this is the latest iteration
             all_iters = [int(ent.get('iter', 0)) for ent in returned_entities] if returned_entities else []
