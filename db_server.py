@@ -209,6 +209,19 @@ async def get_latest_entity(zone: int, index: int):
         raise HTTPException(status_code=404, detail="Entity not found")
     return ent
 
+@server.post("/expandall", dependencies=[Depends(Authorization)])
+async def get_all_at_location(payload: DBEntityRequest):
+    global ZONES
+    ThrowIf(payload.z not in ZONES, f"Invalid zone ID: {payload.z}", status.HTTP_400_BAD_REQUEST)
+
+    store = ZONES[payload.z]
+
+    return await store.get_iters_of_one(
+        payload.x, 
+        payload.y
+    )
+
+# This is more useful for time-based requests.
 @server.post("/expand", dependencies=[Depends(Authorization)])
 async def get_specific_location(payload: DBEntityRequest):
     global ZONES

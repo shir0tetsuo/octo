@@ -112,7 +112,7 @@ function Factory(url, x, y, z, i, apikey=null) {
 /**
  * Makes AJAX request for new entity iter creation.
  * 
- * @param {string} url - API endpoint (fe_server /api/render/one)
+ * @param {string} url - API endpoint (fe_server /api/newiter)
  * @param {number} x - X coordinate in the spatial map
  * @param {number} y - Y coordinate in the spatial map
  * @param {number} z - Zone ID (0-7, 8 total zones)

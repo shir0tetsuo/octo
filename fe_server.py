@@ -415,7 +415,7 @@ async def mint_entity(
         async with httpx.AsyncClient() as client:
             # Fetch current entity state from database
             response = await client.post(
-                DB_SERVER + "/expand",
+                DB_SERVER + "/expandall",
                 headers={"X-API-Key": DB_KEY},
                 timeout=5.0,
                 json={
@@ -434,7 +434,7 @@ async def mint_entity(
 
             # Extract existing entity or create genesis
             if entities:
-                entity_to_mint = entities[0]  # Get the genesis entity
+                entity_to_mint = entities[_iter]
             else:
                 entity_to_mint = databases.entity_genesis(_xpos, _ypos, _zone)
 
@@ -460,8 +460,6 @@ async def mint_entity(
 
             if (_iter == 0):
                 entity_to_mint["state"] = 1
-            else:
-                entity_to_mint["state"] = 2
             
             # Remove UI flag (always remove)
             entity_to_mint.pop('exists', None)
@@ -546,7 +544,7 @@ async def provide_single_render(
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                DB_SERVER + f"/expand",
+                DB_SERVER + f"/expandall",
                 headers={"X-API-Key": DB_KEY},
                 timeout=5.0,
                 json={
@@ -584,7 +582,7 @@ async def provide_single_render(
                         if not entity_normals else
                         sorted_normals
                     ),
-                    'intended_iter': data["intended_iter"],
+                    'intended_iter': _iter,
                     'iter_is_latest': data["is_latest_on_file"],
                     'user_context': user_context,
                     'banner': databases.ZONE_COLORS[_zone]
