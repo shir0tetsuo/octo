@@ -166,15 +166,26 @@ async def set_entity(zone: int, entity: EntityIn):
     
     # Auto-generate index if not provided
     if entity_dict['index'] is None:
+        # Allocate a unique index atomically using the per-zone sequence table.
         async with store._conn() as conn:
+            # Insert a row into index_seq to get an autoincremented id
             cursor = await anyio.to_thread.run_sync(
                 conn.execute,
-                'SELECT MAX("index") FROM entities'
+                "INSERT INTO index_seq DEFAULT VALUES"
             )
-            row = cursor.fetchone()
-            max_index = row[0] if row and row[0] is not None else 0
-            entity_dict['index'] = max_index + 1
-        Tee.log(f"[/set/{zone}] Auto-generated index: {entity_dict['index']}")
+            # sqlite3 Cursor has lastrowid attribute containing the new id
+            new_index = cursor.lastrowid if hasattr(cursor, 'lastrowid') else None
+            if new_index is None:
+                # Fallback to MAX+1 if sequence insertion failed
+                cursor2 = await anyio.to_thread.run_sync(
+                    conn.execute,
+                    'SELECT MAX("index") FROM entities'
+                )
+                row = cursor2.fetchone()
+                max_index = row[0] if row and row[0] is not None else 0
+                new_index = max_index + 1
+            entity_dict['index'] = int(new_index)
+        Tee.log(f"[/set/{zone}] Auto-generated index (seq): {entity_dict['index']}")
     
     await store.set(entity_dict)
     

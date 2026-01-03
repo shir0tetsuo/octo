@@ -399,6 +399,9 @@ class EntityStore(BaseStore):
             
             # queue table
             conn.execute(unwrap_kv_to_create_schema(ENTITYSCHEMA, 'write_queue', index_cols, is_queue=True))
+
+            # sequence table to allocate unique `index` values atomically
+            conn.execute("CREATE TABLE IF NOT EXISTS index_seq (id INTEGER PRIMARY KEY AUTOINCREMENT)")
             
             # Fast lookup by UUID
             conn.execute("CREATE INDEX IF NOT EXISTS idx_uuid ON entities(uuid)")

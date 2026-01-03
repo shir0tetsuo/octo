@@ -16,6 +16,8 @@ const container = document.getElementById('container');
 // Entity versioning system: { 0: genesis_entity, 1: updated_entity, ... }
 // Keys are iteration numbers, values are entity data objects from the server
 var entity;
+// Flag to indicate a new-iteration request is in flight to avoid race with mint
+let pendingNewIter = false;
 
 // Redirect URL from query params - where to go when user clicks "Return"
 let redirect;
@@ -526,6 +528,10 @@ function handleMint(res) {
 }
 
 function mintRequest() {
+    if (pendingNewIter) {
+        launch_error_toast('Please wait for new iteration to finish.');
+        return;
+    }
     _toggle(true, 'loading')
     const e = entity[currentIter];
     const apiKey = getApiKeyFromCookie();
@@ -548,6 +554,8 @@ function mintRequest() {
 
 function handleNewIter(res) {
     _toggle(false, 'loading');
+    // Clear pending flag regardless of outcome
+    pendingNewIter = false;
     if (res?.entity) {
         // res.entity is a mapping of iteration -> entity data
         entity = res.entity;
@@ -565,13 +573,43 @@ function handleNewIter(res) {
         launch_toast("New Iteration Generation Success")
     } else {
         console.warn('Server did not respond with entity.');
+        pendingNewIter = false;
         launch_error_toast(res?.db_health?.message || "Unexpected error occurred.");
     }
 }
 
 function iterRequest() {
+    // Prevent duplicate requests
+    if (pendingNewIter) {
+        launch_error_toast('New iteration already in progress.');
+        return;
+    }
+
+    const prevIter = Number(currentIter);
+    const e = entity[prevIter]
+    const nextIter = Number(prevIter) + 1;
+
+    // Create optimistic placeholder for the new iteration
+    try {
+        const placeholder = JSON.parse(JSON.stringify(e));
+        placeholder.iter = nextIter;
+        placeholder.minted = false;
+        placeholder.exists = false;
+        placeholder.name = placeholder.name ? placeholder.name + ' (pending)' : 'New (pending)';
+        placeholder.state = 2;
+        // Remove index so DB will generate one on commit
+        delete placeholder.index;
+
+        entity[nextIter] = placeholder;
+        currentIter = nextIter;
+        renderCurrentCard();
+    } catch (err) {
+        console.warn('Failed to create optimistic placeholder', err);
+    }
+
+    // Mark that a new-iteration is pending to prevent users from minting the wrong iter
+    pendingNewIter = true;
     _toggle(true, 'loading')
-    const e = entity[currentIter]
     const apiKey = getApiKeyFromCookie();
     Factory("https://octo.shadowsword.ca/api/newiter", e.positionX, e.positionY, e.positionZ, e.iter, apiKey)
     .done(function (res) {
@@ -586,6 +624,19 @@ function iterRequest() {
         })
         .fail(function () {
             _toggle(false, 'loading')
+            // Clear pending flag on failure and revert optimistic placeholder
+            pendingNewIter = false;
+            // Remove optimistic placeholder if present
+            try {
+                if (entity && entity[prevIter + 1] && entity[prevIter + 1].exists === false) {
+                    delete entity[prevIter + 1];
+                }
+            } catch (err) {
+                console.warn('Failed to remove optimistic placeholder', err);
+            }
+            // Restore previous iteration
+            currentIter = prevIter;
+            renderCurrentCard();
             launch_error_toast('Something went wrong.')
             console.warn('Server Com Failure')
         })
