@@ -314,7 +314,7 @@ function showCardHistory() {
         
         // time
         const ts_area = document.createElement("div")
-        ts_area.className = "ts";
+        ts_area.className = "ts holoshim";
         ts_area.style.setProperty("padding", "10px");
         ts_area.style.setProperty("width", "100%");
 

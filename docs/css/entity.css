@@ -146,6 +146,14 @@ body {
     -webkit-text-fill-color: transparent;
 }
 
+.card .linked_historical_text:hover {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.781) 0%, var(--ch1) 60%, rgba(255, 255, 255, 0.904));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    transition: 2s ease-in-out;
+}
+
 .card .cardCenter:hover {
     background-color: #1d1d1db4;
     color: #e8e8e8;
