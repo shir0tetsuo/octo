@@ -440,37 +440,60 @@ class EntityStore(BaseStore):
             await self._pool.put(conn)
 
     async def get_by_ownership_cursor(
-        self,
-        ownership: str,
-        page_size: int = 100,
-        after_index: int | None = None,
-        include_totals: bool = False
-    ) -> dict:
+            self,
+            ownership: str,
+            page_size: int = 100,
+            after_index: int | None = None,
+            include_totals: bool = False
+        ) -> dict:
         '''
         Return the latest entities for an ownership using cursor-based pagination.
 
-        This method avoids OFFSET-based pagination by using the entity ``index``
-        as a cursor, providing stable and performant pagination even for very
-        large datasets and under concurrent writes.
+        Pagination is performed using the entity ``index`` as a cursor, avoiding
+        OFFSET-based queries. This provides stable ordering and predictable
+        performance for large ownership sets, even under concurrent writes.
+
+        Only the **latest iteration (max iter)** of each entity index is returned.
 
         Requires the composite index::
 
             CREATE INDEX idx_ownership_latest
             ON entities(ownership, "index", iter DESC)
 
-        :param ownership: Ownership identifier (e.g. ``"user:123"``).
-        :param cursor: Last-seen entity ``index``; ``None`` starts from the beginning.
-        :param page_size: Maximum number of entities to return.
+        :param ownership:
+            Ownership identifier
 
-        :returns: A dict containing entities and pagination metadata.
+        :param page_size:
+            Maximum number of entities to return. The value is clamped internally
+            to a safe upper bound.
+
+        :param after_index:
+            Cursor indicating the last-seen entity ``index``.
+            If ``None``, pagination starts from the beginning.
+
+        :param include_totals:
+            If ``True``, include ``total_entities`` and ``estimated_pages`` in the
+            response. This incurs an additional grouped COUNT query and should be
+            used sparingly for large datasets.
+
+        :returns:
+            A dictionary containing entities and pagination metadata, including
+            cursor state and continuation flags.
+
         :rtype: dict
 
         Example::
 
-            page = await store.get_by_ownership_cursor("user:123")
-            next_page = await store.get_by_ownership_cursor(
-                "user:123", cursor=page["next_cursor"]
+            page = await store.get_by_ownership_cursor(
+                ownership="user:123",
+                page_size=100
             )
+
+            while page["has_more"]:
+                page = await store.get_by_ownership_cursor(
+                    ownership="user:123",
+                    after_index=page["next_cursor"]
+                )
         '''
         # NOTE (Do not UNION queue rows into cursor pagination — that breaks ordering.)
 

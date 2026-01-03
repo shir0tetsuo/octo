@@ -95,6 +95,12 @@ class EntityRequest(BaseModel):
         
     iter: Optional[int]
 
+class ZoneOwnershipQuery(BaseModel):
+    ownership: str
+    zone: int
+    _validate_zone = field_validator("zone")(validate_zone_int)
+    after_index: int | None = None
+
 class AreaRequest(BaseModel):
     xyzs: list  # [(x,y,z,string),(...)]
 
@@ -219,7 +225,7 @@ async def general_key_check(
 
     return KeyOkayResponse(valid_key=True)
 
-@server.get("/api/APIKey/renew")
+@server.get("/api/APIKey/renew") # Renew given API Key
 async def renew_api_key(
         request: Request,
         user_context:security.DecryptedToken = Depends(Authorization)
@@ -248,11 +254,13 @@ async def renew_api_key(
         status.HTTP_403_FORBIDDEN
     )
 
-    new_key = security.create_api_key(
+    new_key = security.create_api_key( # b64
         *user_context.data,
         key_storage_file=key_storage_file,
         ID=user_context.ID
     ).decode()
+
+    Tee(f'[/api/APIKey/renew] Issued new lease for {str(user_context.data)}')
 
     return ServerRenewResponse(
         message='OK',
@@ -374,11 +382,53 @@ async def render_provider(
         db_health={"message": "Unexpected error."}
     )
 
-@server.post('/api/render/areas')
+@server.post('/api/ownership') # for user data on the entity user page
+async def get_area_ownership_data(
+        request: Request,
+        payload: ZoneOwnershipQuery
+    ):
+
+    client_host = request.client.host
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=15):
+        return ServerOkayResponse(
+            message='ERROR',
+            db_health={"message": "Rate Limit Exceeded"}
+        )
+    
+    json_payload = {'ownership': payload.ownership}
+    # If there are more pages
+    if payload.after_index:
+        json_payload['after_index'] = payload.after_index
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                DB_SERVER + f"/ownership/{payload.zone}",
+                headers={"X-API-Key": DB_KEY},
+                timeout=10.0, # Might be heavy payload
+                json=json_payload
+            )
+
+            if response.status_code != status.HTTP_200_OK:
+                return ServerOkayResponse(
+                    message="ERROR",
+                    db_health={"message": f"Failed to fetch entity: {response.status_code}"}
+                )
+            
+            data = response.json()         
+            return data
+        
+    except httpx.ConnectError:
+        return ServerOkayResponse(
+            message="ERROR",
+            db_health={"message": "Database server unreachable"}
+        )
+
+@server.post('/api/render/areas') # for map
 async def provide_area_render(
         request: Request,
         payload: AreaRequest,
-        user_context:security.DecryptedToken = Depends(APIKeyPresence)
+        user_context: security.DecryptedToken = Depends(APIKeyPresence)
     ):
     
     client_host = request.client.host
