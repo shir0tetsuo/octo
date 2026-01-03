@@ -60,6 +60,28 @@ function updateTS(e) {
     requestAnimationFrame(() => updateTS(e));
 }
 
+function updateTS_descript(e, prefix) {
+    if (!e) return;
+
+    // Read raw dataset value and coerce to a finite number (seconds)
+    const raw = e.dataset?.ts;
+    const rawNum = Number(raw);
+    const ts = Number.isFinite(rawNum) ? rawNum * 1000 : 0;
+
+    if (ts === 0) {
+        e.innerHTML = "--:--:--:--";
+    } else {
+        let diff = (Date.now() - ts) / 1000;
+        const days = Math.floor(diff / 86400);
+        const hours = Math.floor((diff % 86400) / 3600);
+        const minutes = Math.floor((diff % 3600) / 60);
+        const seconds = Math.floor(diff % 60);
+        e.innerHTML = `${prefix} ${days}d:${hours}h:${minutes}m:${seconds}s`;
+    }
+
+    requestAnimationFrame(() => updateTS_descript(e, prefix));
+}
+
 function safeRedirect(path) {
     // Prevent open redirects by only allowing relative paths starting with /
     if (path && path.startsWith("/") && !path.startsWith("//")) {
@@ -173,14 +195,20 @@ function cardSwap(active) {
         if (c.style.display === 'none') {
             _toggle(true, 'card_main');
             _toggle(false, 'datasurface');
+            _toggle(true, 'cellbar_top');
+            _toggle(true, 'cellbar_bottom');
         } else {
             _toggle(false, 'card_main');
             _toggle(true, 'datasurface');
+            _toggle(false, 'cellbar_top');
+            _toggle(false, 'cellbar_bottom');
         }
     } else {
         // Different tool clicked - switch to new tool view
         _toggle(false, 'card_main');
         _toggle(true, 'datasurface');
+        _toggle(false, 'cellbar_top');
+        _toggle(false, 'cellbar_bottom');
         activeFace = active
     }
 }
@@ -257,6 +285,12 @@ function showCardEdit() {
     underline_tool_nav('nav_tools_edit');
 }
 
+
+function renderFromHistorical(i) {
+    currentIter = i;
+    renderCurrentCard()
+}
+
 /**
  * Displays history of all entity iterations.
  * Shows version timeline and allows jumping between iterations.
@@ -265,6 +299,48 @@ function showCardEdit() {
 function showCardHistory() {
     cardSwap('history');
     underline_tool_nav('nav_tools_history');
+    const ds = document.getElementById('datasurface');
+    ds.style.setProperty('overflow-y', 'scroll');
+    const specular_layer = document.createElement("div");
+    const content = document.createElement("div");
+    content.className = "content";
+    content.style.setProperty("word-break", "break-all");
+    const description_layer = document.createElement("div");
+    description_layer.innerHTML = '';
+    for (const i in entity) {
+        let e = entity[i];
+        
+        // time
+        const ts_area = document.createElement("div")
+        ts_area.className = "ts";
+        ts_area.style.setProperty("padding", "10px");
+        ts_area.style.setProperty("width", "100%");
+
+        ts_area.innerText = '--:--:--:-- #?';
+        ts_area.dataset.ts = e.timestamp;
+        const minted_icon = (e.minted) ? '<i class="ri-copper-coin-fill"></i>' : '<i class="ri-copper-coin-line"></i>';
+        updateTS_descript(ts_area, minted_icon + ` #${e.iter} <i class="ri-time-line"></i>`);
+
+        const linked_text = document.createElement("div");
+        linked_text.appendChild(ts_area);
+
+        linked_text.className = "linked_historical_text";
+        const channels = Object.values(e.aesthetics.bar);
+        console.log(channels);
+        linked_text.style.setProperty("--ch0", channels[7]);
+        linked_text.style.setProperty("--ch1", channels[0]);
+
+        //linked_text.innerHTML = e.name + '<br>';
+        linked_text.onclick = () => renderFromHistorical(i);
+
+        //linked_text.appendChild(ts_area)
+        description_layer.appendChild(linked_text);
+
+    }
+
+    content.appendChild(description_layer);
+    specular_layer.appendChild(content);
+    ds.appendChild(specular_layer);
 }
 
 /**
@@ -591,11 +667,13 @@ function buildCard(entity_data, key) {
     iter_number.innerText = '#' + key ?? '0';
 
     const cellbar_top = document.createElement("div");
+    cellbar_top.id = "cellbar_top";
     cellbar_top.className = "cell-bar";
     cellbar_top.style.setProperty('position', 'absolute');
     cellbar_top.style.setProperty('top', '260px');
 
     const cellbar_bottom = document.createElement("div");
+    cellbar_bottom.id = "cellbar_bottom";
     cellbar_bottom.className = "cell-bar";
     cellbar_bottom.style.setProperty('position', 'absolute');
     cellbar_bottom.style.setProperty('top', '525px');

@@ -133,6 +133,19 @@ body {
     font-size: 20px;
 }
 
+.card .linked_historical_text {
+    margin: 2px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    cursor: pointer;
+    width: 80%;
+    /*background-color: #1d1d1db4;*/
+    background: linear-gradient(120deg, var(--ch0) 25%, var(--ch1) 90%, black);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
 .card .cardCenter:hover {
     background-color: #1d1d1db4;
     color: #e8e8e8;
