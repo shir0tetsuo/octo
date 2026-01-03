@@ -403,6 +403,11 @@ class EntityStore(BaseStore):
             # sequence table to allocate unique `index` values atomically
             conn.execute("CREATE TABLE IF NOT EXISTS index_seq (id INTEGER PRIMARY KEY AUTOINCREMENT)")
             
+            # Fast lookup by ownership
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ownership_latest
+                ON entities(ownership, "index", iter DESC)
+            """)
             # Fast lookup by UUID
             conn.execute("CREATE INDEX IF NOT EXISTS idx_uuid ON entities(uuid)")
             # Fast 2D spatial queries
@@ -433,6 +438,117 @@ class EntityStore(BaseStore):
             yield conn
         finally:
             await self._pool.put(conn)
+
+    async def get_by_ownership_cursor(
+        self,
+        ownership: str,
+        page_size: int = 100,
+        after_index: int | None = None,
+        include_totals: bool = False
+    ) -> dict:
+        '''
+        Return the latest entities for an ownership using cursor-based pagination.
+
+        This method avoids OFFSET-based pagination by using the entity ``index``
+        as a cursor, providing stable and performant pagination even for very
+        large datasets and under concurrent writes.
+
+        Requires the composite index::
+
+            CREATE INDEX idx_ownership_latest
+            ON entities(ownership, "index", iter DESC)
+
+        :param ownership: Ownership identifier (e.g. ``"user:123"``).
+        :param cursor: Last-seen entity ``index``; ``None`` starts from the beginning.
+        :param page_size: Maximum number of entities to return.
+
+        :returns: A dict containing entities and pagination metadata.
+        :rtype: dict
+
+        Example::
+
+            page = await store.get_by_ownership_cursor("user:123")
+            next_page = await store.get_by_ownership_cursor(
+                "user:123", cursor=page["next_cursor"]
+            )
+        '''
+        # NOTE (Do not UNION queue rows into cursor pagination — that breaks ordering.)
+
+        page_size = max(1, min(page_size, 1000))
+
+        async with self._conn() as conn:
+
+            def _fetch():
+                params = [ownership]
+
+                cursor_clause = ""
+                if after_index is not None:
+                    cursor_clause = 'AND "index" > ?'
+                    params.append(after_index)
+
+                # Fetch one page (+1 to detect next page)
+                rows = conn.execute(
+                    f"""
+                    SELECT e.*
+                    FROM entities e
+                    JOIN (
+                        SELECT "index", MAX(iter) AS max_iter
+                        FROM entities
+                        WHERE ownership = ?
+                        GROUP BY "index"
+                    ) latest
+                    ON e."index" = latest."index"
+                    AND e.iter = latest.max_iter
+                    WHERE e.ownership = ?
+                    {cursor_clause}
+                    ORDER BY e."index"
+                    LIMIT ?
+                    """,
+                    params + [page_size + 1]
+                ).fetchall()
+
+                total_count = None
+                if include_totals:
+                    total_count = conn.execute(
+                        """
+                        SELECT COUNT(*)
+                        FROM (
+                            SELECT "index"
+                            FROM entities
+                            WHERE ownership = ?
+                            GROUP BY "index"
+                        )
+                        """,
+                        (ownership,)
+                    ).fetchone()[0]
+
+                return rows, total_count
+
+            rows, total_count = await anyio.to_thread.run_sync(_fetch)
+
+        # Detect continuation
+        has_more = len(rows) > page_size
+        rows = rows[:page_size]
+
+        next_cursor = rows[-1][0] if has_more and rows else None
+
+        response = {
+            "ownership": ownership,
+            "page_size": page_size,
+            "after_index": after_index,
+            "next_cursor": next_cursor,
+            "has_more": has_more,
+            "entities": [self._row_to_dict(r) for r in rows],
+        }
+
+        if total_count is not None:
+            response["total_entities"] = total_count
+            response["estimated_pages"] = (
+                (total_count + page_size - 1) // page_size
+            )
+
+        return response
+
 
     async def range_query(self, bounds: dict):
         '''

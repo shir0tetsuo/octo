@@ -74,6 +74,12 @@ class EntityIn(BaseModel):
     minted: bool
     timestamp: float
 
+class OwnershipCursorQuery(BaseModel):
+    ownership: str
+    page_size: int = 100
+    after_index: int | None = None
+    include_totals: bool = False
+
 class RangeQuery(BaseModel):
     min_x: int
     max_x: int
@@ -152,6 +158,15 @@ async def get_max_index(zone: int):
         max_index = row[0] if row and row[0] is not None else 0
     
     return {"max_index": max_index}
+
+@server.post("/ownership/{zone}", dependencies=[Depends(Authorization)])
+async def get_entities_by_ownership(zone: int, query: OwnershipCursorQuery):
+    global ZONES
+    ThrowIf(zone not in ZONES, f"Invalid zone ID: {zone}", status.HTTP_400_BAD_REQUEST)
+
+    store = ZONES[zone]
+
+    return await store.get_by_ownership_cursor(**query.model_dump())
 
 @server.post("/set/{zone}", dependencies=[Depends(Authorization)])
 async def set_entity(zone: int, entity: EntityIn):
