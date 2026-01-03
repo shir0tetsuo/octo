@@ -45,7 +45,7 @@ NewID = lambda: str(uuid.uuid4())
 ZONES = {
     i : databases.EntityStore(
         ExtendToParentResource('db', f'zone{i}.sqlite'), databases.POOL_SIZE) 
-        for i in databases.ZONE_INTEGER
+        for i in databases.ZONE_INTEGERS
 }
 
 db_path = ExtendToParentResource('db')

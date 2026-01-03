@@ -37,7 +37,7 @@ from fastapi                 import FastAPI, Header, HTTPException, status, Back
 from fastapi.security        import APIKeyHeader
 from fastapi.responses       import PlainTextResponse # might be removed later
 from uvicorn                 import run as uvicorn_run
-from pydantic                import BaseModel, Field
+from pydantic                import BaseModel, Field, field_validator
 
 # Cryptography
 from cryptography                                import x509
@@ -71,16 +71,28 @@ class ServerRenewResponse(BaseModel):
 class APIKeyCheckRequest(BaseModel):
     APIKey: str
 
+def validate_zone_int(v: int) -> int:
+    max_zone = len(databases.ZONE_COLORS) - 1
+    if v < 0 or v > max_zone:
+        raise ValueError(f"Zone must be between 0 and {max_zone}")
+    return v
+
 class EntititesRequest(BaseModel):
     x_axis: int  # map X
     y_axis: int  # map Y
-    z_axis: Literal[0, 1, 2, 3, 4, 5, 6, 7] # 8 Zones
+
+    z_axis: int
+    _validate_z_axis = field_validator("z_axis")(validate_zone_int)
+    
     time_axis: float | None
 
 class EntityRequest(BaseModel):
     x_pos: int  # absolute position
     y_pos: int  # absolute position
-    zone: Literal[0, 1, 2, 3, 4, 5, 6, 7] # 8 Zones
+    
+    zone: int
+    _validate_zone = field_validator("zone")(validate_zone_int)
+        
     iter: Optional[int]
 
 class AreaRequest(BaseModel):
@@ -385,7 +397,7 @@ async def provide_area_render(
         y=mapmath.expand_sequence(int(req[1]))[0]
         z=int(req[2])
         s=str(req[3])
-        if z not in databases.ZONE_INTEGER:
+        if z not in databases.ZONE_INTEGERS:
             continue
         ent = databases.normalize_entity(databases.entity_genesis(x, y, z), z)
         ent['repr'] = {'x': int(req[0]), 'y': int(req[1]), 's': s}

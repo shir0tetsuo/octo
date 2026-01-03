@@ -33,10 +33,7 @@ logger = logging.getLogger("db")
 
 ReadableTS = lambda ts : datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
 
-ZONE_INTEGER = list(range(0, 8)) # 8 Zones
-'''List int of Database, where last integer is n zones.'''
-
-ZONE_COLORS = { # 8 Zones
+ZONE_COLORS = { # Define zone colors here, zone length expands to len; Don't forget to adjust ZONE_GLYPHS
     0 : [
         '#7489c9',        '#74c9c5',        '#74bcc9',        '#74abc9',
         '#749ac9',        '#7489c9',        '#7478c9',        '#8174c9',
@@ -78,6 +75,9 @@ ZONE_COLORS = { # 8 Zones
         '#d5db90',        '#c2dea3',        '#accac3'
     ]
 }
+
+ZONE_INTEGERS = list(range(0, len(ZONE_COLORS)))
+'''List int of Database, where last integer is n zones.'''
 
 ZONE_GLYPH_TABLES = { # 8 Zones, but (this is spread "evenly" among the zones. Keep that in mind.)
     'birds': [

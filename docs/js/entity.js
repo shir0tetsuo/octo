@@ -9,6 +9,8 @@
 // ============================================================================
 
 // ──── Global State Variables ────────────────────────────────────────────────
+let number_of_zones = 8;
+
 const container = document.getElementById('container');
 
 // Entity versioning system: { 0: genesis_entity, 1: updated_entity, ... }
@@ -837,7 +839,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const xpos = Math.floor(nonNegativeNumber(xyzi[0] ?? 0, 0));
     const ypos = Math.floor(nonNegativeNumber(xyzi[1] ?? 0, 0));
     // Enforce [0,1,2,3,4,5,6,7] # 8 Zones
-    const zone = Math.min(7, Math.max(0, Math.floor(nonNegativeNumber(xyzi[2] ?? 0, 0))));
+    const zone = Math.min(number_of_zones-1, Math.max(0, Math.floor(nonNegativeNumber(xyzi[2] ?? 0, 0))));
     
     // Iteration to display
     const ITER = Math.floor(nonNegativeNumber(xyzi[3] ?? 0, 0));

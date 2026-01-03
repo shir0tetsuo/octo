@@ -1,3 +1,4 @@
+let number_of_zones = 8
 
 // Cell Building
 
@@ -301,7 +302,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const xpos = Math.floor(nonNegativeNumber(params, 'x', 0));
     const ypos = Math.floor(nonNegativeNumber(params, 'y', 0));
     // Enforce [0,1,2,3,4,5,6,7] # 8 Zones
-    const zone = Math.min(7, Math.max(0, Math.floor(nonNegativeNumber(params, 'z', 0))));
+    const zone = Math.min(number_of_zones-1, Math.max(0, Math.floor(nonNegativeNumber(params, 'z', 0))));
 
     const apiKey = getApiKeyFromCookie();
 
