@@ -326,7 +326,6 @@ function showCardHistory() {
 
         linked_text.className = "linked_historical_text";
         const channels = Object.values(e.aesthetics.bar);
-        console.log(channels);
         linked_text.style.setProperty("--ch0", channels[7]);
         linked_text.style.setProperty("--ch1", channels[0]);
 
