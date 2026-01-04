@@ -554,12 +554,12 @@ function showCardOwner() {
 
     const ds = document.getElementById('datasurface');
     ds.style.setProperty('overflow-y', 'scroll');
-    ds.style.setProperty('padding', '10px');
     const specular_layer = document.createElement("div");
     const content = document.createElement("div");
     content.className = "content";
     content.style.setProperty("font-style", "monospace");
     const description_layer = document.createElement("div");
+    description_layer.style.setProperty('padding', '10px');
     description_layer.innerHTML = '';
 
     // (Render Entity Info), z above
