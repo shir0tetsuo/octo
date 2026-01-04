@@ -1,7 +1,8 @@
 import os, json, base64, threading
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any, Tuple
 from datetime import datetime
+import hashlib
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import uuid
 from pydantic import BaseModel
@@ -21,6 +22,7 @@ NoneID = "00000000-0000-0000-0000-000000000001"
 
 NewToken = lambda *args: f'{token_separator}'.join(args)
 NewCipherBlob = lambda token, key, nonce: nonce + AESGCM(key).encrypt(nonce, token.encode(), None)
+Canonicalize = lambda data: json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=True)  # Convert arbitrary Python data into a deterministic string.
 
 def store_private_key(key_storage_file:Path, lock=threading.RLock(), private_key:bytes=os.urandom(32)):
     try:
@@ -132,3 +134,26 @@ def sanitize(value: str, *, max_length: Optional[int] = None) -> str:
         value = value[:max_length]
 
     return value
+
+def proof_of_work(
+        data: Any,
+        difficulty: int = 2,
+        max_nonce: int | None = 10000,
+    ) -> Tuple[str, int]:
+        '''
+        Find a nonce such that `SHA256(data + nonce)` starts with `difficulty` zeros.
+        '''
+        prefix = "0" * difficulty
+        base = Canonicalize(data)
+
+        nonce = 0
+        while True:
+            payload = f"{base}:{nonce}".encode("utf-8")
+            digest = hashlib.sha256(payload).hexdigest()
+
+            if digest.startswith(prefix):
+                return digest, nonce
+
+            nonce += 1
+            if max_nonce is not None and nonce >= max_nonce:
+                raise RuntimeError("Nonce limit exceeded")

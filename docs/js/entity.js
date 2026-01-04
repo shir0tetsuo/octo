@@ -39,8 +39,93 @@ let currentIter = null;
 // When switched, card_main is hidden and datasurface shows the tool view
 var activeFace = 'main';
 
+// This will find the x_axis and y_axis values from x_pos and y_pos
 function collapseValue(n, length = 8) {
     return Math.floor((n - 1) / length);
+}
+
+// Normalize an object for serialization in PoW
+function canonicalize(value) {
+    if (value === null) return "null";
+
+    const t = typeof value;
+
+    if (t === "number" || t === "boolean") {
+        return String(value);
+    }
+
+    if (t === "string") {
+        return JSON.stringify(value);
+    }
+
+    if (value instanceof Date) {
+        return JSON.stringify(value.toISOString());
+    }
+
+    if (Array.isArray(value)) {
+        return "[" + value.map(canonicalize).join(",") + "]";
+    }
+
+    if (t === "object") {
+        const keys = Object.keys(value).sort();
+        return (
+            "{" +
+            keys
+                .map(k => JSON.stringify(k) + ":" + canonicalize(value[k]))
+                .join(",") +
+            "}"
+        );
+    }
+
+    throw new TypeError("Unsupported type");
+}
+
+async function sha256Hex(input) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    return [...new Uint8Array(hashBuffer)]
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+async function proofOfWork(data, difficulty = 2, maxNonce = 10_000) {
+    const prefix = "0".repeat(difficulty);
+    const base = canonicalize(data);
+
+    let nonce = 0;
+    while (nonce <= maxNonce) {
+        const payload = `${base}:${nonce}`;
+        const hash = await sha256Hex(payload);
+
+        if (hash.startsWith(prefix)) {
+            return {
+                hash,
+                nonce,
+                difficulty
+            };
+        }
+
+        nonce++;
+    }
+
+    throw new Error(
+        `Proof of Work failed: exceeded maxNonce (${maxNonce})`
+    );
+}
+
+function getPoW() {
+    (async () => {
+        const input = entity[currentIter];
+
+        try {
+            const result = await proofOfWork(input, 2, 100_000);
+            console.log("Result:", result);
+        } catch (err) {
+            console.error(err.message);
+        }
+    })();
+    return `Calculating hash for #${currentIter}`
 }
 
 /* Navigate to Entity : Build the URL component, execute on click */
