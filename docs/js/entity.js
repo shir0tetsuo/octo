@@ -567,7 +567,7 @@ function showCardOwner() {
     const l = Object.keys(entity).length - 1;
     let i  = entity[currentIter].iter;
     let o  = entity[currentIter].ownership || 'No ownership.';
-    let ro = (entity[currentIter].ownership) ? '<i class="ri-passport-fill"></i> ' + o : '<i class="ri-passport-line"></i>'
+    let ro = (entity[currentIter].ownership) ? '<i class="ri-passport-fill"></i> ' + o : '<i class="ri-passport-line"></i> No ownership.'
     let m  = (entity[currentIter].minted) ? '<i class="ri-copper-coin-fill"></i>' : '<i class="ri-copper-coin-line"></i>';
     let X  = entity[currentIter].positionX;
     let Y  = entity[currentIter].positionY;
