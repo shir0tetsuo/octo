@@ -4,6 +4,28 @@ function showHiddenButton(data) {
     }
 }
 
+function updateTS_descript(e, prefix) {
+    if (!e) return;
+
+    // Read raw dataset value and coerce to a finite number (seconds)
+    const raw = e.dataset?.ts;
+    const rawNum = Number(raw);
+    const ts = Number.isFinite(rawNum) ? rawNum * 1000 : 0;
+
+    if (ts === 0) {
+        e.innerHTML = "--:--:--:--";
+    } else {
+        let diff = (Date.now() - ts) / 1000;
+        const days = Math.floor(diff / 86400);
+        const hours = Math.floor((diff % 86400) / 3600);
+        const minutes = Math.floor((diff % 3600) / 60);
+        const seconds = Math.floor(diff % 60);
+        e.innerHTML = `${prefix} ${days}d:${hours}h:${minutes}m:${seconds}s`;
+    }
+
+    requestAnimationFrame(() => updateTS_descript(e, prefix));
+}
+
 /**
  * Displays error notification toast at bottom of screen.
  * Auto-dismisses after 5 seconds.
@@ -53,6 +75,12 @@ function doHealthPost() {
         dataType: "json",
         success: function (data) {
             console.log("Production");
+            
+            // Update with server started time
+            const ts_area = document.getElementById('ts');
+            ts_area.dataset.ts = data.application_ts;
+            updateTS_descript(ts_area, '<i class="ri-history-line"></i> uptime')
+
             updateDescription(data, "Production");
             console.log(data?.db_health);
             showHiddenButton(data);

@@ -47,6 +47,9 @@ from cryptography.hazmat.primitives              import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric   import rsa
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+ApplicationTS = time.time()
+ApplicationStart = datetime.fromtimestamp(ApplicationTS).strftime("%Y-%m-%d %H:%M:%S.%f")
+
 Tee = verbose.T()
 
 ExtendToParentResource = lambda *args: Path(os.path.join(Path(__file__).parent.resolve(), *args))
@@ -62,6 +65,8 @@ blacklist = databases.Blacklist(ExtendToParentResource('engine', 'blacklist.json
 class ServerOkayResponse(BaseModel):
     message: Literal['OK', 'ERROR']
     version: str = versioning.distribution_version
+    application_ts: float = ApplicationTS
+    application_start: str = ApplicationStart
     db_health: dict
 
 class ServerRenewResponse(BaseModel):
