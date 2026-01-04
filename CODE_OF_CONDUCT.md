@@ -253,7 +253,7 @@ Les activités suivantes sont **strictement interdites**, même de manière symb
 * Présenter une gnose personnelle non vérifiée comme vérité absolue
 
 Le consentement clair est **obligatoire**.
-Toute tentative de contournement entraîne des conséquences immédiates (politique FAFO).
+Toute tentative de contournement entraîne des conséquences immédiates
 
 ---
 
