@@ -357,7 +357,7 @@ class BaseStore:
     @property
     def metrics(self):
         return {
-            'started': self.started,
+            'started': datetime.fromtimestamp(self.started).strftime("%Y-%m-%d %H:%M:%S.%f"),
             'flushes': self.flushes,
             'writes': self.writes,
             'cache_hits': self.cache_hits,

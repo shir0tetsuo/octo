@@ -299,7 +299,8 @@ def server_hello(decrypted_token: security.DecryptedToken = Depends(Authorizatio
 async def health():
     """Get metrics for all zones."""
     global ZONES
-    return {i : store.metrics for i, store in ZONES.items()}
+    metrics = {i : store.metrics for i, store in ZONES.items()}
+    return { "message": "OK", **metrics, "db_server_version": versioning.distribution_version }
 
 @server.get("/health/{zone}", dependencies=[Depends(Authorization)])
 async def zone_health(zone: int):
