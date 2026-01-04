@@ -480,11 +480,11 @@ function renderOwnerEntities(res, z, container) {
         const next_cursor = res.next_cursor; // db cursor
         const total = res.total;
 
-        res.rows.forEach(e => {
+        res.rows.reverse().forEach(e => {
             let x_axis = collapseValue(e.positionX);
             let y_axis = collapseValue(e.positionY);
-            const xyzi = `x${e.positionX}, y${e.positionY}, z${z}, #${e.iter} @ X${x_axis}, Y${y_axis}`;
-
+            let m  = (e.minted) ? '<i class="ri-copper-coin-fill"></i>' : '<i class="ri-copper-coin-line"></i>';
+            const xyzi = `x${e.positionX}, y${e.positionY}, z${z}, ${m} #${e.iter} @ X${x_axis}, Y${y_axis}`;
             let this_cell_is_local_entity = (e.positionX == entity[currentIter].positionX && e.positionY == entity[currentIter].positionY) ? '<i class="ri-focus-2-fill"></i> ' : '';
 
             const cell = document.createElement("div");

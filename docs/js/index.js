@@ -82,7 +82,7 @@ function doHealthPost() {
             updateTS_descript(ts_area, '<i class="ri-history-line"></i> uptime')
 
             updateDescription(data, "Production");
-            console.log(data?.db_health);
+            console.log(data);
             showHiddenButton(data);
             _toggle(false, 'loading')
             c = document.getElementById('card-main');
