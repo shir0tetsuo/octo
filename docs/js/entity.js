@@ -19,6 +19,8 @@ var entity;
 // Flag to indicate a new-iteration request is in flight to avoid race with mint
 let pendingNewIter = false;
 
+let isLevel;
+
 // Redirect URL from query params - where to go when user clicks "Return"
 let redirect;
 
@@ -290,6 +292,10 @@ function underline_tool_nav(nav_name) {
 function showCardRm() {
     cardSwap('rm');
     underline_tool_nav('nav_tools_rm');
+    c = document.getElementById('card_main')
+    if (c.style.display === 'block') {
+        return
+    }
     if (currentIter == 0) {
         // Genesis card - show prohibition message
         const char_quote = '<i class="ri-prohibited-line"></i> ';
@@ -323,6 +329,54 @@ function showCardRm() {
 function showCardEdit() {
     cardSwap('edit');
     underline_tool_nav('nav_tools_edit');
+    c = document.getElementById('card_main')
+    if (c.style.display === 'block') {
+        return
+    }
+    // Admins (isLevel >= 3) can edit anyway.
+    if (entity[currentIter].ownership != user_context.ID && isLevel < 3) {
+        const char_quote = '<i class="ri-prohibited-line"></i> ';
+        const char_quote_long = ' '+char_quote;
+        var description = "You don't have ownership.";
+        while (description.replaceAll(char_quote_long, '').length < 1500) {
+            description = description + char_quote_long + description;
+        }
+        description = char_quote + description;
+        const ds = document.getElementById('datasurface');
+        const specular_layer = document.createElement("div");
+        specular_layer.className = 'card specular';
+        specular_layer.style.setProperty('--spec-channel', '#5e5e5eff');
+        const content = document.createElement("div");
+        content.className = "content";
+        content.style.setProperty("word-break", "break-all");
+        const description_layer = document.createElement("div");
+        description_layer.innerHTML = description;
+
+        content.appendChild(description_layer);
+        specular_layer.appendChild(content);
+        ds.appendChild(specular_layer);
+    } else if (entity[currentIter].minted && isLevel < 3) {
+        const char_quote = '<i class="ri-prohibited-line"></i> ';
+        const char_quote_long = ' '+char_quote;
+        var description = "This iteration is minted, editing not allowed.";
+        while (description.replaceAll(char_quote_long, '').length < 1500) {
+            description = description + char_quote_long + description;
+        }
+        description = char_quote + description;
+        const ds = document.getElementById('datasurface');
+        const specular_layer = document.createElement("div");
+        specular_layer.className = 'card specular';
+        specular_layer.style.setProperty('--spec-channel', '#5e5e5eff');
+        const content = document.createElement("div");
+        content.className = "content";
+        content.style.setProperty("word-break", "break-all");
+        const description_layer = document.createElement("div");
+        description_layer.innerHTML = description;
+
+        content.appendChild(description_layer);
+        specular_layer.appendChild(content);
+        ds.appendChild(specular_layer);
+    }
 }
 
 
@@ -339,6 +393,10 @@ function renderFromHistorical(i) {
 function showCardHistory() {
     cardSwap('history');
     underline_tool_nav('nav_tools_history');
+    c = document.getElementById('card_main')
+    if (c.style.display === 'block') {
+        return
+    }
     const ds = document.getElementById('datasurface');
     ds.style.setProperty('overflow-y', 'scroll');
     const specular_layer = document.createElement("div");
@@ -547,6 +605,10 @@ function renderOwnerEntities(res, z, container) {
 function showCardOwner() {
     cardSwap('owner');
     underline_tool_nav('nav_tools_id');
+    c = document.getElementById('card_main')
+    if (c.style.display === 'block') {
+        return
+    }
 
     let e = entity[0];
     const z = e.positionZ;
@@ -1038,7 +1100,7 @@ function buildCard(entity_data, key) {
     const level = user_context.data
         .find(v => typeof v === 'string' && v.startsWith('isLevel'))
         ?.match(/\d+/)?.[0];
-    const isLevel = level ? Number(level) : 0 ;
+    isLevel = level ? Number(level) : 0 ;
 
     console.log(`DEBUG: owner: ${user_could_be_owner} (Decrypted: ${user_context.decryption_success}), minted: ${entity_data.minted}, level: ${isLevel}, iter: ${currentIter} & ${entity_data.iter}, total_iterations: ${Object.keys(entity).length}`);
     
