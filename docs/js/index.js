@@ -100,6 +100,12 @@ function doHealthPost() {
                 success: function (data) {
                     console.log("Local server reachable");
                     console.log(data?.db_health);
+
+                    // Update with server started time
+                    const ts_area = document.getElementById('ts');
+                    ts_area.dataset.ts = data.application_ts;
+                    updateTS_descript(ts_area, '<i class="ri-history-line"></i> uptime')
+
                     updateDescription(data, "Local");
                     showHiddenButton(data);
                     _toggle(false, 'loading')
