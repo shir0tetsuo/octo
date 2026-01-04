@@ -19,7 +19,11 @@ var entity;
 // Flag to indicate a new-iteration request is in flight to avoid race with mint
 let pendingNewIter = false;
 
+// User's Access Level, >= 3 is admin
 let isLevel;
+
+// Required information to make edits
+let dbAestheticsObject;
 
 // Redirect URL from query params - where to go when user clicks "Return"
 let redirect;
@@ -553,8 +557,7 @@ function renderOwnerEntities(res, z, container) {
             function updateExtrusion() {
                 const ts = parseFloat(extrusion.dataset.ts) * 1000;
                 if (ts === 0) {
-                    display.innerHTML = "--:--:--:--"
-                    //display.textContent = "--:--:--:--";
+                    display.innerHTML = "--:--:--:--";
                 } else {
                     let diff = (Date.now() - ts) / 1000; // seconds
                     const days = Math.floor(diff / 86400);

@@ -95,6 +95,16 @@ class EntityRequest(BaseModel):
         
     iter: Optional[int]
 
+class EntityEditRequest(EntityRequest):
+    name: str
+    description: str
+    g: list[int] # glyphs
+    c: list[int] # channels
+
+class ZoneAestheticQuery(BaseModel):
+    zone: int
+    _validate_zone = field_validator("zone")(validate_zone_int)
+
 class ZoneOwnershipQuery(BaseModel):
     ownership: str
     zone: int
@@ -260,7 +270,7 @@ async def renew_api_key(
         ID=user_context.ID
     ).decode()
 
-    Tee(f'[/api/APIKey/renew] Issued new lease for {str(user_context.data)}')
+    Tee.log(f'[/api/APIKey/renew] Issued new lease for {str(user_context.data)}')
 
     return ServerRenewResponse(
         message='OK',
@@ -381,6 +391,149 @@ async def render_provider(
         message="ERROR",
         db_health={"message": "Unexpected error."}
     )
+
+@server.post('/api/edit')
+async def entity_edit(
+        request: Request,
+        payload: EntityEditRequest,
+        user_context: security.DecryptedToken = Depends(Authorization)
+    ):
+
+    client_host = request.client.host
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=20):
+        return ServerOkayResponse(
+            message='ERROR',
+            db_health={"message": "Rate Limit Exceeded"}
+        )
+    
+    _xpos, _ypos, _zone, _iter = [int(i) for i in [payload.x_pos, payload.y_pos, payload.zone, payload.iter]]
+
+    # Rebuild aesthetic based on specified values
+    aesthetics = {
+        'bar': { 
+            f'channel_{i}': data 
+            for i, data in list(
+                enumerate(
+                    [
+                        listloop(databases.ZONE_COLORS[_zone], c) 
+                        for c in payload.c
+                    ]
+                )
+            )
+        },
+        'glyphs': { 
+            f'glyph_{i}': data 
+            for i, data in list(
+                enumerate(
+                    [
+                        listloop(databases.ZONE_GLYPHS[_zone], g) 
+                        for g in payload.g
+                    ]
+                )
+            ) 
+        }
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                DB_SERVER + "/expand",  # Only query for our intended target
+                headers={
+                    "X-API-Key": DB_KEY,
+                },
+                timeout=5.0,
+                json={
+                    'x': _xpos, 'y': _ypos, 'z': _zone, 'i': _iter
+                }
+            )
+
+            if response.status_code != status.HTTP_200_OK:
+                return ServerOkayResponse(
+                    message="ERROR",
+                    db_health={"message": f"Failed to fetch entity: {response.status_code}"}
+                )
+            
+            data = response.json()
+            entities = data['entities']
+
+            if (not entities) and ('isLevel3' not in user_context.data):
+                return ServerOkayResponse(
+                    message="ERROR",
+                    db_health={"message": f"No #0 mint, not allowed"}
+                )
+            
+            entity_normals = {
+                int(ent["iter"]): databases.normalize_entity(ent, _zone)
+                for ent in entities
+            }
+
+            sorted_normals = dict(sorted(entity_normals.items()))
+
+            target_iter_entity = sorted_normals[_iter]
+
+            if target_iter_entity.ownership != user_context.ID:
+                return ServerOkayResponse(
+                    message="ERROR",
+                    db_health={"message": f"Ownership of iter #{_iter} does not match user context ID."}
+                )
+
+            target_iter_entity['aesthetics'] = aesthetics
+            target_iter_entity['description'] = security.sanitize(payload.description, max_length=1024)
+            target_iter_entity['name'] = security.sanitize(payload.name, max_length=64)
+            target_iter_entity['state'] = 3
+
+            # Remove UI flag
+            target_iter_entity.pop('exists', None)
+            target_iter_entity.pop('positionZ', None)
+
+            set_response = await client.post(
+                DB_SERVER + f"/set/{_zone}",
+                headers={"X-API-Key": DB_KEY},
+                timeout=5.0,
+                json=target_iter_entity
+            )
+
+            Tee.log(f'[/api/edit] Response status: {set_response.status_code}')
+            if set_response.status_code != status.HTTP_200_OK:
+                return ServerOkayResponse(
+                    message="ERROR",
+                    db_health={"message": f"Database Error: {set_response.status_code}"}
+                )
+            
+            return {
+                'message': 'OK',
+                'entity': databases.normalize_entity(target_iter_entity, _zone)
+            }
+    
+    except httpx.ConnectError:
+        return ServerOkayResponse(
+            message="ERROR",
+            db_health={"message": "Database server unreachable"}
+        )
+
+@server.post('/api/edit/options')
+async def database_aesthetics_options(
+        request: Request,
+        payload: ZoneAestheticQuery
+    ):
+
+    client_host = request.client.host
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=20):
+        return ServerOkayResponse(
+            message='ERROR',
+            db_health={"message": "Rate Limit Exceeded"}
+        )
+
+    _zone = int(payload.zone)
+
+    data = {
+        'aesthetics': {
+            'bar': databases.ZONE_COLORS[_zone],
+            'glyphs': databases.ZONE_GLYPHS[_zone]
+        }
+    }
+
+    return data
 
 @server.post('/api/ownership') # for user data on the entity user page
 async def get_area_ownership_data(
@@ -567,7 +720,7 @@ async def iter_request(
                 'intended_iter': _iter,
                 'iter_is_latest': iter_is_latest,
                 'user_context': user_context,
-                'banner': databases.ZONE_COLORS[_zone]
+                #'banner': databases.ZONE_COLORS[_zone]
             }
         
     except httpx.ConnectError:

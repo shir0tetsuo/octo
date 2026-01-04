@@ -5,6 +5,8 @@ from datetime import datetime
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import uuid
 from pydantic import BaseModel
+import re
+import unicodedata
 
 class DecryptedToken(BaseModel):
     decryption_success: bool
@@ -78,3 +80,55 @@ def decrypt_api_key(b64_cipher, key_storage_file:Path, lock=threading.RLock()):
             days_old=0, 
             ID=NoneID
         )
+    
+# Commonly abused characters across SQL / JS / Python injection
+DANGEROUS_CHARS = re.compile(
+    r'''
+    [\x00-\x1F\x7F]      |  # Control chars
+    ['"`\\]              |  # Quotes / escapes
+    ;                    |  # Statement chaining
+    --                   |  # SQL comments
+    /\*|\*/              |  # SQL block comments
+    <|>                  |  # HTML / JS injection
+    \$\{                 |  # JS template injection
+    \|\||&&              |  # Logical chaining
+    \b(eval|exec|import|require|process|os|sys)\b
+    ''',
+    re.IGNORECASE | re.VERBOSE
+)
+
+
+SAFE_DEFAULT = re.compile(r"[^a-zA-Z0-9 _.\-@:/]")
+
+def sanitize(value: str, *, max_length: Optional[int] = None) -> str:
+    '''
+    Aggressively sanitize text for non-executable contexts.
+
+    - Safe for storage, display, logging
+    - Unicode-aware (runes allowed)
+    - NOT a replacement for parameterized SQL or escaping APIs
+    '''
+
+    if not isinstance(value, str):
+        value = str(value)
+
+    # 1. Unicode normalization (critical)
+    value = unicodedata.normalize("NFKC", value)
+
+    # 2. Strip dangerous patterns
+    value = DANGEROUS_CHARS.sub("", value)
+
+    # 3. Remove remaining control / formatting Unicode chars
+    value = "".join(
+        ch for ch in value
+        if unicodedata.category(ch)[0] != "C"
+    )
+
+    # 4. Collapse whitespace
+    value = re.sub(r"\s+", " ", value).strip()
+
+    # 5. Clamp length if requested
+    if max_length is not None:
+        value = value[:max_length]
+
+    return value
