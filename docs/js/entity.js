@@ -33,6 +33,16 @@ let currentIter = null;
 // When switched, card_main is hidden and datasurface shows the tool view
 var activeFace = 'main';
 
+function collapseValue(n, length = 8) {
+    return Math.floor((n - 1) / length);
+}
+
+/* Navigate to Entity : Build the URL component, execute on click */
+function NavigateToEntity(ent, z) {
+    const xyzi = encodeURIComponent(`${ent.positionX},${ent.positionY},${z},${ent.iter}`);
+    const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `entity.html?xyzi=`+xyzi+`&redirect=${redirect}`;
+}
 
 /**
  * Continuously updates a timestamp element to show elapsed time since entity creation.
@@ -132,6 +142,34 @@ function Factory(url, x, y, z, i, apikey=null) {
         dataType: "json",
         headers: apikey ? { "X-API-Key": apikey } : {},
         data: JSON.stringify({ 'x_pos': x, 'y_pos': y, 'zone': z, 'iter': i })
+    })
+}
+
+/**
+ * Make AJAX request to fetch ownership rows from the server.
+ * This is used for the ownership section.
+ * Zone is added to the URL, not the query.
+ * 
+ * @param {string} url 
+ * @param {string} ownership_id 
+ * @param {number} after_index 
+ * @returns {Promise} jQuery AJAX promise
+ */
+function QueryOwnershipData(url, ownership_id, z, after_index=null) {
+
+    const payload = {
+        ownership: ownership_id,
+        zone: z,
+        ...(after_index !== null && { after_index })
+    };
+
+    return $.ajax({
+        type: "POST",
+        url: url,
+        timeout: 2000,
+        contentType: "application/json",
+        dataType: "json",
+        data: JSON.stringify(payload)
     })
 }
 
@@ -344,14 +382,228 @@ function showCardHistory() {
     ds.appendChild(specular_layer);
 }
 
+function applyDataStateChannel(pad, bar) {
+    if (!bar || typeof bar !== "object") return;
+
+    const channels = Object.values(bar);
+
+    channels.forEach((c, i) => {
+        pad.style.setProperty(`--dc${i}`, c);
+    });
+}
+
+function applyChannelAnimation(pad, bar) {
+    if (!bar || typeof bar !== "object") return;
+
+    const channels = Object.values(bar); // channel_0 → channel_7
+
+    channels.forEach((c, i) => {
+        pad.style.setProperty(`--c${i}`, c);
+    });
+
+    // First 4 drive the background animation
+    for (let i = 0; i < 4; i++) {
+        pad.style.setProperty(`--ch-${i}`, channels[i % channels.length]);
+    }
+}
+
+function renderOwnerEntities(res, z, container) {
+    console.log(res);
+    if (res?.rows) {
+
+        // TODO : (Currently Unused)
+        // If rows > 100, link should appear for next page
+        // based on the cursor position.
+        const hasMoreData = res.has_more;
+        const next_cursor = res.next_cursor; // db cursor
+        const total = res.total;
+
+        res.rows.forEach(e => {
+            let x_axis = collapseValue(e.positionX);
+            let y_axis = collapseValue(e.positionY);
+            const xyzi = `x${e.positionX}, y${e.positionY}, z${z}, #${e.iter} @ X${x_axis}, Y${y_axis}`;
+
+            let this_cell_is_local_entity = (e.positionX == entity[currentIter].positionX && e.positionY == entity[currentIter].positionY) ? '<i class="ri-focus-2-fill"></i> ' : '';
+
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            cell.dataset.state = e.state ?? 0;
+            
+            applyDataStateChannel(cell, e.aesthetics?.bar);
+            
+            const pad = document.createElement("div");
+            pad.className = "cell-pad";
+
+            applyChannelAnimation(pad, e.aesthetics?.bar);
+            
+            const seed = parseInt(e.uuid?.replace(/-/g, "").slice(0, 6), 16) || 0;
+            pad.style.animationDelay = `${-(seed % 1200) / 100}s`;
+
+
+            const inner = document.createElement("div");
+            inner.className = "cell-inner";
+
+            const top = document.createElement("div");
+            top.className = "glyph-top";
+
+            const bottom = document.createElement("div");
+            bottom.className = "glyph-bottom";
+
+            const glyphs = Object.values(e.aesthetics?.glyphs || {});
+            glyphs.slice(0, 8).forEach((g, i) => {
+                const d = document.createElement("div");
+                d.className = "glyph-slot";
+                if (i == 7) {
+                    d.style=("cursor: pointer");
+                    d.className = "glyph-slot NavElement"
+                    d.onclick = () => NavigateToEntity(e, z);
+                }
+                d.textContent = g;
+
+                d.style.setProperty("--glyph-ch", i);
+                d.style.animationDelay = `${i * 0.2}s`;
+
+                if (i < 4) top.appendChild(d);
+                else bottom.appendChild(d);
+            });
+
+            const center = document.createElement("div");
+            center.className = "center extrusionbase";
+
+            const uuid = document.createElement("div");
+            uuid.className = "uuid";
+            uuid.innerHTML = `${this_cell_is_local_entity}${e.uuid.slice(0, 8)} ${xyzi}`;
+
+
+            const owner = document.createElement("div");
+            owner.className = "owner";
+            owner.textContent = (e.ownership ?? "00000000").split('-')[0];
+
+            // extrusion tooltip with hidden timestamp
+            const extrusion = document.createElement("div");
+            extrusion.className = "extrude";
+
+            // Hidden timestamp value in a data attribute
+            const timestamp = e.timestamp ?? 0; // float/int
+            extrusion.dataset.ts = timestamp;
+
+            const display = document.createElement("div");
+            display.textContent = "--:--:--:--";
+            extrusion.appendChild(display);
+
+            // Function to update the display
+            function updateExtrusion() {
+                const ts = parseFloat(extrusion.dataset.ts) * 1000;
+                if (ts === 0) {
+                    display.innerHTML = "--:--:--:--"
+                    //display.textContent = "--:--:--:--";
+                } else {
+                    let diff = (Date.now() - ts) / 1000; // seconds
+                    const days = Math.floor(diff / 86400);
+                    const hours = Math.floor((diff % 86400) / 3600);
+                    const minutes = Math.floor((diff % 3600) / 60);
+                    const seconds = Math.floor(diff % 60);
+                    display.innerHTML = `${days}d${hours}h${minutes}m${seconds}s`;
+                }
+                requestAnimationFrame(updateExtrusion);
+            }
+
+            const channels = Object.values(e.aesthetics?.bar);
+            const CellBar = document.createElement("div");
+            CellBar.className = "cell-bar";
+
+            channels.forEach((c, i) => {
+                const next = channels[(i + 1) % channels.length];
+                const BarEl = document.createElement("div");
+                BarEl.style.setProperty(`--xch0`, c)
+                BarEl.style.setProperty(`--xch1`, next)
+                BarEl.className = "bar-el";
+                CellBar.append(BarEl)
+            })
+
+            extrusion.append(CellBar);
+
+            requestAnimationFrame(updateExtrusion);
+
+            center.append(uuid, owner, extrusion);
+            inner.append(top, center, bottom);
+            pad.append(inner);
+            cell.append(pad);
+
+            container.appendChild(cell);
+        })
+        _toggle(false, 'loading');
+    } else {
+        _toggle(false, 'loading')
+        launch_error_toast(res?.db_health?.message || "Unexpected error occurred.");
+    }
+}
+
 /**
  * Displays ownership information and user permissions.
  * Shows who owns the entity and what actions are available.
- * TODO: Implement owner view
- */
+ * NOTE : after_index should be built in renderOwnerEntities.
+*/
 function showCardOwner() {
     cardSwap('owner');
     underline_tool_nav('nav_tools_id');
+
+    let e = entity[0];
+    const z = e.positionZ;
+    const entity_stack_owner = e.ownership;
+
+    const ds = document.getElementById('datasurface');
+    ds.style.setProperty('overflow-y', 'scroll');
+    ds.style.setProperty('padding', '10px');
+    const specular_layer = document.createElement("div");
+    const content = document.createElement("div");
+    content.className = "content";
+    content.style.setProperty("font-style", "monospace");
+    const description_layer = document.createElement("div");
+    description_layer.innerHTML = '';
+
+    // (Render Entity Info), z above
+    const entity_card_layer = document.createElement("div");
+    const l = Object.keys(entity).length - 1;
+    let i  = entity[currentIter].iter;
+    let o  = entity[currentIter].ownership || 'No ownership.';
+    let ro = (entity[currentIter].ownership) ? '<i class="ri-passport-fill"></i> ' + o : '<i class="ri-passport-line"></i>'
+    let m  = (entity[currentIter].minted) ? '<i class="ri-copper-coin-fill"></i>' : '<i class="ri-copper-coin-line"></i>';
+    let X  = entity[currentIter].positionX;
+    let Y  = entity[currentIter].positionY;
+    let u  = entity[currentIter].uuid;
+    let s  = entity[currentIter].state;
+    let ts = entity[currentIter].timestamp;
+    const date = new Date(ts * 1000);
+    const info_data = document.createElement("div");
+    info_data.innerHTML = `${m} x${X}, y${Y}, z${z}, #${i}/${l}<br>${ro}<br><i class="ri-focus-2-fill"></i> ${u}<br><i class="ri-time-line"></i> ${date.toString()}<br><br>`;
+
+    if (entity_stack_owner) {
+        _toggle(true, 'loading')
+        QueryOwnershipData('https://octo.shadowsword.ca/api/ownership', entity_stack_owner, z)
+        .done(function (res) {
+            renderOwnerEntities(res, z, description_layer);
+        })
+        .fail(function  () {
+            QueryOwnershipData('http://localhost:9300/api/ownership', entity_stack_owner, z)
+            .done(function (res) {
+                renderOwnerEntities(res, z, description_layer);
+            })
+            .fail(function (dataOrJqXHR, textStatus, jqXHRorError) {
+                // NOTE : This can be used for other failure returns.
+                const jqXHR = dataOrJqXHR.status ? dataOrJqXHR : jqXHRorError;
+                let status = jqXHR.status;
+                launch_error_toast(`${textStatus}: ${status}`);
+                _toggle(false, 'loading')
+            })
+        })
+    }
+
+    // render
+    description_layer.appendChild(info_data);
+    content.appendChild(description_layer); // append function data here
+    specular_layer.appendChild(content);
+    ds.appendChild(specular_layer);
 }
 
 /**

@@ -99,7 +99,7 @@ class ZoneOwnershipQuery(BaseModel):
     ownership: str
     zone: int
     _validate_zone = field_validator("zone")(validate_zone_int)
-    after_index: int | None = None
+    after_index: int | None = None  # (is cursor integer)
 
 class AreaRequest(BaseModel):
     xyzs: list  # [(x,y,z,string),(...)]
@@ -395,6 +395,12 @@ async def get_area_ownership_data(
             db_health={"message": "Rate Limit Exceeded"}
         )
     
+    if (not payload.ownership) or (payload.ownership == '00000000'):
+        return ServerOkayResponse(
+            message="ERROR",
+            db_health={"message": "Ownership payload invalid."}
+        )
+
     json_payload = {'ownership': payload.ownership}
     # If there are more pages
     if payload.after_index:
@@ -539,7 +545,6 @@ async def iter_request(
             set_data = set_response.json()
             returned_entities = set_data.get('entities', [])
 
-
             # Build entity dict from all returned iterations
             entity_dict = {}
             if returned_entities:
@@ -547,9 +552,6 @@ async def iter_request(
                 for ent in returned_entities:
                     iter_num = int(ent.get('iter', 0))
                     entity_dict[iter_num] = databases.normalize_entity(ent, _zone)
-
-            # User must be owner of #0 mint
-            
 
             # Determine if this is the latest iteration
             all_iters = [int(ent.get('iter', 0)) for ent in returned_entities] if returned_entities else []

@@ -501,76 +501,70 @@ class EntityStore(BaseStore):
 
         async with self._conn() as conn:
 
-            def _fetch():
-                params = [ownership]
+            params = [ownership, ownership]
 
-                cursor_clause = ""
-                if after_index is not None:
-                    cursor_clause = 'AND "index" > ?'
-                    params.append(after_index)
+            cursor_clause = ""
+            if after_index is not None:
+                cursor_clause = 'AND e."index" > ?'
+                params.append(after_index)
 
-                # Fetch one page (+1 to detect next page)
-                rows = conn.execute(
-                    f"""
-                    SELECT e.*
-                    FROM entities e
-                    JOIN (
-                        SELECT "index", MAX(iter) AS max_iter
-                        FROM entities
-                        WHERE ownership = ?
-                        GROUP BY "index"
-                    ) latest
-                    ON e."index" = latest."index"
-                    AND e.iter = latest.max_iter
-                    WHERE e.ownership = ?
-                    {cursor_clause}
-                    ORDER BY e."index"
-                    LIMIT ?
-                    """,
+            sql = f"""
+                SELECT e.*
+                FROM entities e
+                JOIN (
+                    SELECT uuid, MAX(iter) AS max_iter
+                    FROM entities
+                    WHERE ownership = ?
+                    GROUP BY uuid
+                ) latest
+                ON e.uuid = latest.uuid
+                AND e.iter = latest.max_iter
+                WHERE e.ownership = ?
+                {cursor_clause}
+                ORDER BY e."index"
+                LIMIT ?
+            """
+
+            if __debug__:
+                expected = sql.count("?")
+                actual = len(params) + 1
+                assert expected == actual
+
+            rows = await anyio.to_thread.run_sync(
+                lambda: conn.execute(
+                    sql,
                     params + [page_size + 1]
                 ).fetchall()
+            )
 
-                total_count = None
-                if include_totals:
-                    total_count = conn.execute(
+            total = None
+            if include_totals:
+                total = await anyio.to_thread.run_sync(
+                    lambda: conn.execute(
                         """
                         SELECT COUNT(*)
                         FROM (
-                            SELECT "index"
+                            SELECT uuid
                             FROM entities
                             WHERE ownership = ?
-                            GROUP BY "index"
+                            GROUP BY uuid
                         )
                         """,
                         (ownership,)
                     ).fetchone()[0]
+                )
 
-                return rows, total_count
+            has_more = len(rows) > page_size
+            rows = rows[:page_size]
 
-            rows, total_count = await anyio.to_thread.run_sync(_fetch)
+            next_cursor = rows[-1][0] if rows else None
 
-        # Detect continuation
-        has_more = len(rows) > page_size
-        rows = rows[:page_size]
-
-        next_cursor = rows[-1][0] if has_more and rows else None
-
-        response = {
-            "ownership": ownership,
-            "page_size": page_size,
-            "after_index": after_index,
-            "next_cursor": next_cursor,
-            "has_more": has_more,
-            "entities": [self._row_to_dict(r) for r in rows],
-        }
-
-        if total_count is not None:
-            response["total_entities"] = total_count
-            response["estimated_pages"] = (
-                (total_count + page_size - 1) // page_size
-            )
-
-        return response
+            return {
+                "rows": [self._row_to_dict(r) for r in rows],
+                "next_cursor": next_cursor,
+                "has_more": has_more,
+                "total": total,
+            }
 
 
     async def range_query(self, bounds: dict):
