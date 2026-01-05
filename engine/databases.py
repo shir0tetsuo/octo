@@ -26,7 +26,7 @@ DiscordUserID = NewType('DiscordUserID', str)
 POOL_SIZE      = int(os.getenv("POOL_SIZE", 4))
 FLUSH_INTERVAL = float(os.getenv("FLUSH_INTERVAL", 2.0))
 MAX_QUEUE_ROWS = int(os.getenv("MAX_QUEUE_ROWS", 100)) # or 1000
-LRU_CACHE_SIZE = int(os.getenv("LRU_CACHE_SIZE", 2048))
+LRU_CACHE_SIZE = int(os.getenv("LRU_CACHE_SIZE", 256))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("db")
@@ -392,7 +392,7 @@ class EntityStore(BaseStore):
             conn.execute("PRAGMA journal_mode=WAL;")
             conn.execute("PRAGMA synchronous=NORMAL;")
             conn.execute("PRAGMA temp_store=MEMORY;")
-            conn.execute("PRAGMA mmap_size=30000000000;")
+            conn.execute("PRAGMA mmap_size=16777216;") # About 16-64 MB
             
             # main table
             conn.execute(unwrap_kv_to_create_schema(ENTITYSCHEMA, 'entities', index_cols))

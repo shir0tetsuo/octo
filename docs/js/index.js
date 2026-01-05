@@ -4,6 +4,17 @@ function showHiddenButton(data) {
     }
 }
 
+/**
+ * Retrieves API key from browser cookies.
+ * API key authenticates requests to protected endpoints.
+ * 
+ * @returns {string|null} API key or null if not found
+ */
+function getApiKeyFromCookie() {
+    const match = document.cookie.match(/(?:^|; )X-API-Key=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : null;
+}
+
 function updateTS_descript(e, prefix) {
     if (!e) return;
 

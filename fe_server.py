@@ -405,7 +405,7 @@ async def entity_edit(
     ):
 
     client_host = request.client.host
-    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=20):
+    if not ratelimits.within_edit_rate_limit(client_ip=client_host):
         return ServerOkayResponse(
             message='ERROR',
             db_health={"message": "Rate Limit Exceeded"}
@@ -523,7 +523,7 @@ async def database_aesthetics_options(
     ):
 
     client_host = request.client.host
-    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=20):
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=15):
         return ServerOkayResponse(
             message='ERROR',
             db_health={"message": "Rate Limit Exceeded"}

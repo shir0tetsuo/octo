@@ -236,6 +236,22 @@ function Factory(url, x, y, z, i, apikey=null) {
     })
 }
 
+
+/**
+ * Makes AJAX request to fetch aesthetic data from the server for iter edits.
+ *
+ */
+function AestheticRequest(url, z) {
+    return $.ajax({
+        type: "POST",
+        url: url,
+        timeout: 1500,
+        contentType: "application/json",
+        dataType: "json",
+        data: JSON.stringify({ 'zone': z })
+    })
+}
+
 /**
  * Make AJAX request to fetch ownership rows from the server.
  * This is used for the ownership section.
@@ -412,6 +428,240 @@ function showCardRm() {
 }
 
 /**
+ * Given a color hex string, return the index in dbAestheticsObject.bar
+ * Returns -1 if the color is not found
+ * @param {string} hex - color hex (e.g. "#74c9c5")
+ * @returns {number} index
+ */
+function getIndexFromHex(hex) {
+    return dbAestheticsObject.bar.findIndex(color => color.toLowerCase() === hex.toLowerCase());
+}
+
+/**
+ * Given a glyph character, return its index in dbAestheticsObject.glyphs
+ * Returns -1 if the glyph is not found
+ * @param {string} glyph - a glyph character
+ * @returns {number} index
+ */
+function getIndexFromGlyph(glyph) {
+    return dbAestheticsObject.glyphs.findIndex(g => g === glyph);
+}
+
+function EditorSubmit(container) {
+    const glyphCells = container.querySelectorAll(".glyph-editor");
+    const glyphData = Array.from(glyphCells).map((cell, idx) => {
+        //const glyphDisplay = cell.querySelector(".glyph-slot");
+        const glyphSelect = cell.querySelector("select:nth-of-type(1)");
+        const colorSelect = cell.querySelector("select:nth-of-type(2)");
+
+        return {
+            index: idx,
+            glyph: glyphSelect.value,
+            g: getIndexFromGlyph(glyphSelect.value),
+            color: colorSelect.value,
+            c: getIndexFromHex(colorSelect.value)
+        };
+    });
+
+    // Format by index for sanitized submission to server
+    const _g = [];
+    const _c = [];
+    glyphData.forEach(gd => {
+        _g.push(gd.g);
+        _c.push(gd.c);
+    });
+
+    const payload = {
+        name: container.dataset._n,
+        description: container.dataset._d,
+        g: _g,
+        c: _c
+    };
+
+    console.log(payload);
+}
+
+// Specifically for the editor
+function createGlyphGrid(container) {
+    container.innerHTML = ''; // clear old cells
+
+    const glyphObj = entity[currentIter].aesthetics.glyphs;
+    const barObj = entity[currentIter].aesthetics.bar;
+
+    // Convert objects to arrays in the proper order
+    const entityGlyphs = Object.keys(glyphObj)
+        .sort((a, b) => Number(a.split('_')[1]) - Number(b.split('_')[1]))
+        .map(k => glyphObj[k]);
+
+    const entityColors = Object.keys(barObj)
+        .sort((a, b) => Number(a.split('_')[1]) - Number(b.split('_')[1]))
+        .map(k => barObj[k]);
+
+    entityGlyphs.forEach((currentGlyph, idx) => {
+        const currentColor = entityColors[idx];
+
+        // ===== CELL =====
+        const cell = document.createElement('div');
+        cell.className = 'cell glyph-editor';
+
+        const inner = document.createElement('div');
+        inner.classList.add('cell-inner', 'center');
+
+        // ==== INDEX LABEL ====
+        const idxLabel = document.createElement('div');
+        idxLabel.textContent = idx;
+        idxLabel.className = 'idx-label';
+
+        // ==== GLYPH DISPLAY ====
+        const glyphDisplay = document.createElement('div');
+        glyphDisplay.classList.add('glyph-slot');
+        glyphDisplay.textContent = currentGlyph;
+        glyphDisplay.style.padding = '10px';
+        glyphDisplay.style.fontSize = 'clamp(50px, 5vw, 120px)';
+        glyphDisplay.style.setProperty('--glyph-ch', idx);  // current color
+        glyphDisplay.style.setProperty(`--c${idx}`, currentColor);
+        glyphDisplay.style.setProperty('--from', currentColor);
+        glyphDisplay.style.setProperty('--to', currentColor);
+        //glyphDisplay.dataset.glyphIdx = idx;
+
+        // ==== GLYPH DROPDOWN ====
+        const glyphSelect = document.createElement('select');
+        glyphSelect.style.margin = '5px';
+        glyphSelect.style.textAlign = 'center';
+        dbAestheticsObject.glyphs.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g;
+            opt.textContent = g;
+            if (g === currentGlyph) opt.selected = true; // select current
+            glyphSelect.appendChild(opt);
+        });
+        
+        glyphSelect.addEventListener('change', e => {
+            glyphDisplay.textContent = e.target.value;
+        });
+
+        // ==== COLOR DROPDOWN ====
+        const colorSelect = document.createElement('select');
+        colorSelect.style.margin = '5px';
+        colorSelect.style.textAlign = 'center';
+        dbAestheticsObject.bar.forEach((colorIdx) => {
+            const opt = document.createElement('option');
+            opt.value = colorIdx;
+            opt.textContent = `${colorIdx}`;
+            if (colorIdx === currentColor) opt.selected = true;  // select current
+            colorSelect.appendChild(opt);
+
+        });
+
+        colorSelect.addEventListener('change', e => {
+            const selectedColor = e.target.value;
+            console.log('Display set to ' + selectedColor);
+            
+            // Apply to glyph
+            glyphDisplay.style.setProperty(`--c${idx}`, selectedColor);
+            glyphDisplay.style.setProperty('--from', selectedColor);
+        });
+
+        // ==== Assemble cell ====
+        inner.appendChild(glyphDisplay);
+        inner.appendChild(glyphSelect);
+        inner.appendChild(colorSelect);
+        cell.appendChild(inner);
+        cell.appendChild(idxLabel);
+        container.appendChild(cell);
+    });
+}
+
+
+function renderEditor() {
+    // page constants
+    const e = entity[currentIter];
+    const f = document.createElement("form");
+
+    // h2
+    const xyzi = `x${e.positionX}, y${e.positionY}, z${e.positionZ}, #${e.iter} @ X${collapseValue(e.positionX)}, Y${collapseValue(e.positionY)}`
+    f.innerHTML = `<h2>${xyzi}</h2><br>`
+
+    // input boxes
+    const ib = document.createElement("div");
+    ib.className = "input-box";
+    const itb = document.createElement("div");
+    itb.className = "input-box";
+   
+    // e.name
+    const f_name = document.createElement("input");
+    f_name.type = "text";
+    f_name.value = e.name;
+    f_name.placeholder = "Name for Iteration";
+    f_name.required = true;
+    f_name.autocomplete = "off";
+    const f_name_icon = document.createElement("i");
+    f_name_icon.className = "ri-price-tag-2-fill";
+    f_name.maxLength = 64;
+
+    // e.description
+    const f_desc = document.createElement("textarea");
+    f_desc.value = e.description;
+    f_desc.placeholder = "Description / General Info";
+    f_desc.required = true;
+    f_desc.autocomplete = "off";
+    const f_desc_icon = document.createElement("i");
+    f_desc_icon.className = "ri-question-line";
+    f_desc.maxLength = 1024;
+
+    // Add data to form controller
+    ib.append(f_name, f_name_icon);
+    itb.append(f_desc, f_desc_icon);
+    f.append(ib, itb);
+
+    // Glyphs and Colors Editor
+    const styles_container = document.createElement("div");
+    styles_container.className = "grid styles-container";
+    styles_container.style.setProperty("display", "grid");
+    createGlyphGrid(styles_container);
+
+    const spacer = document.createElement("div");
+    spacer.style.setProperty("padding-top", "20px");
+    spacer.style.setProperty("width", "100%");
+    f.appendChild(spacer);
+    f.appendChild(styles_container);
+
+    // ===== SUBMIT BUTTON =====
+    const submitBtn = document.createElement("button");
+    submitBtn.type = "button"; // prevent actual form submission
+    submitBtn.textContent = "Submit";
+    submitBtn.style.marginTop = "15px";
+    submitBtn.style.padding = "8px 16px";
+    submitBtn.style.cursor = "pointer";
+
+    styles_container.dataset._n = f_name.value;
+    styles_container.dataset._d = f_desc.value;
+
+    submitBtn.addEventListener("click", () => {
+        EditorSubmit(styles_container);
+    });
+
+    f.addEventListener("submit", (e) => {
+        e.preventDefault(); // stop page reload
+    });
+
+    f.appendChild(submitBtn);
+    
+    // Create parents, add to ds render
+    const ds = document.getElementById('datasurface');
+    const content = document.createElement("div");
+    ds.style.setProperty("overflow-y", "scroll");
+    content.className = "content";
+    content.style.setProperty("word-break", "break-all");
+    content.style.setProperty("padding", "10px");
+    const description_layer = document.createElement("div");
+    description_layer.appendChild(f);
+
+    content.appendChild(description_layer);
+    ds.appendChild(content);
+}
+
+/**
  * Displays edit interface for the entity.
  * TODO: Implement edit form (only available for unminted or owned entities)
  */
@@ -465,6 +715,38 @@ function showCardEdit() {
         content.appendChild(description_layer);
         specular_layer.appendChild(content);
         ds.appendChild(specular_layer);
+    } else {
+        let e = entity[0];
+        const z = e.positionZ;
+        
+        if (dbAestheticsObject === undefined || dbAestheticsObject === null) {
+            console.log(e, z)
+            _toggle(true, 'loading')
+            AestheticRequest("https://octo.shadowsword.ca/api/edit/options", z)
+            .done(function (res) {
+                dbAestheticsObject = res?.aesthetics || undefined;
+                _toggle(false, 'loading');
+                renderEditor()
+            })
+            .fail(function () {
+                AestheticRequest("http://localhost:9300/api/edit/options", z)
+                .done(function (res) {
+                    dbAestheticsObject = res?.aesthetics || undefined;
+                    _toggle(false, 'loading');
+                    renderEditor()
+                })
+                .fail(function (dataOrJqXHR, textStatus, jqXHRorError) {
+                    const jqXHR = dataOrJqXHR.status ? dataOrJqXHR : jqXHRorError;
+                    let status = jqXHR.status;
+                    launch_error_toast(`${textStatus}: ${status}`);
+                    _toggle(false, 'loading')
+                })
+            })
+        } else {
+            renderEditor()
+        }
+
+        
     }
 }
 
@@ -1088,7 +1370,7 @@ function buildCard(entity_data, key) {
 
     const tools_history = document.createElement("a");
     tools_history.id = 'nav_tools_history'
-    tools_history.innerHTML = '<span onclick="showCardHistory()"><i class="ri-time-line"></i> history</span>'
+    tools_history.innerHTML = '<span onclick="showCardHistory()"><i class="ri-time-line"></i> stack</span>'
 
     const tools_user = document.createElement("a");
     const ownership = entity_data.ownership ?? '00000000';
