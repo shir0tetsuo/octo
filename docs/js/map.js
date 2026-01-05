@@ -36,6 +36,37 @@ function NavigateToEntity(entity) {
     window.location.href = `entity.html?xyzi=`+xyzi+`&redirect=${redirect}`;
 }
 
+/**
+ * Continuously updates a timestamp element to show elapsed time since entity creation.
+ * Format: Xd:Xh:Xm:Xs (days:hours:minutes:seconds)
+ * @param {HTMLElement} e - Element with data-ts attribute (Unix timestamp in seconds)
+ */
+function updateTS(e) {
+    if (!e) return;
+
+    const rawNum = Number(e.dataset?.ts);
+    const ts = Number.isFinite(rawNum) ? rawNum * 1000 : 0;
+
+    function tick() {
+        if (ts === 0) {
+            e.textContent = "--:--:--:--";
+        } else {
+            const diff = Math.floor((Date.now() - ts) / 1000);
+
+            const days = Math.floor(diff / 86400);
+            const hours = Math.floor((diff % 86400) / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            const seconds = diff % 60;
+
+            e.textContent = `${days}d:${hours}h:${minutes}m:${seconds}s`;
+        }
+
+        setTimeout(tick, 1000);
+    }
+
+    tick();
+}
+
 function buildCell(entity) {
     const cell = document.createElement("div");
     cell.className = "cell";
@@ -103,23 +134,6 @@ function buildCell(entity) {
     display.textContent = "--:--:--:--";
     extrusion.appendChild(display);
 
-    // Function to update the display
-    function updateExtrusion() {
-        const ts = parseFloat(extrusion.dataset.ts) * 1000;
-        if (ts === 0) {
-            display.innerHTML = "--:--:--:--"
-            //display.textContent = "--:--:--:--";
-        } else {
-            let diff = (Date.now() - ts) / 1000; // seconds
-            const days = Math.floor(diff / 86400);
-            const hours = Math.floor((diff % 86400) / 3600);
-            const minutes = Math.floor((diff % 3600) / 60);
-            const seconds = Math.floor(diff % 60);
-            display.innerHTML = `${days}d${hours}h${minutes}m${seconds}s`;
-        }
-        requestAnimationFrame(updateExtrusion);
-    }
-
     const channels = Object.values(entity.aesthetics?.bar);
     const CellBar = document.createElement("div");
     CellBar.className = "cell-bar";
@@ -134,7 +148,7 @@ function buildCell(entity) {
     })
     extrusion.append(CellBar);
 
-    requestAnimationFrame(updateExtrusion);
+    updateTS(extrusion);
 
     center.append(uuid, owner, extrusion);
     inner.append(top, center, bottom);

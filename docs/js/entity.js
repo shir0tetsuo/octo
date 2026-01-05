@@ -137,31 +137,35 @@ function NavigateToEntity(ent, z) {
 
 /**
  * Continuously updates a timestamp element to show elapsed time since entity creation.
- * Uses requestAnimationFrame for smooth updates without blocking.
  * Format: Xd:Xh:Xm:Xs (days:hours:minutes:seconds)
  * @param {HTMLElement} e - Element with data-ts attribute (Unix timestamp in seconds)
  */
 function updateTS(e) {
     if (!e) return;
 
-    // Read raw dataset value and coerce to a finite number (seconds)
-    const raw = e.dataset?.ts;
-    const rawNum = Number(raw);
+    const rawNum = Number(e.dataset?.ts);
     const ts = Number.isFinite(rawNum) ? rawNum * 1000 : 0;
 
-    if (ts === 0) {
-        e.innerHTML = "--:--:--:--";
-    } else {
-        let diff = (Date.now() - ts) / 1000;
-        const days = Math.floor(diff / 86400);
-        const hours = Math.floor((diff % 86400) / 3600);
-        const minutes = Math.floor((diff % 3600) / 60);
-        const seconds = Math.floor(diff % 60);
-        e.innerHTML = `${days}d:${hours}h:${minutes}m:${seconds}s`;
+    function tick() {
+        if (ts === 0) {
+            e.textContent = "--:--:--:--";
+        } else {
+            const diff = Math.floor((Date.now() - ts) / 1000);
+
+            const days = Math.floor(diff / 86400);
+            const hours = Math.floor((diff % 86400) / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            const seconds = diff % 60;
+
+            e.textContent = `${days}d:${hours}h:${minutes}m:${seconds}s`;
+        }
+
+        setTimeout(tick, 1000);
     }
 
-    requestAnimationFrame(() => updateTS(e));
+    tick();
 }
+
 
 function updateTS_descript(e, prefix) {
     if (!e) return;
@@ -171,18 +175,22 @@ function updateTS_descript(e, prefix) {
     const rawNum = Number(raw);
     const ts = Number.isFinite(rawNum) ? rawNum * 1000 : 0;
 
-    if (ts === 0) {
-        e.innerHTML = "--:--:--:--";
-    } else {
-        let diff = (Date.now() - ts) / 1000;
-        const days = Math.floor(diff / 86400);
-        const hours = Math.floor((diff % 86400) / 3600);
-        const minutes = Math.floor((diff % 3600) / 60);
-        const seconds = Math.floor(diff % 60);
-        e.innerHTML = `${prefix} ${days}d:${hours}h:${minutes}m:${seconds}s`;
+    function tick() {
+        if (ts === 0) {
+            e.innerHTML = "--:--:--:--";
+        } else {
+            let diff = (Date.now() - ts) / 1000;
+            const days = Math.floor(diff / 86400);
+            const hours = Math.floor((diff % 86400) / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            const seconds = Math.floor(diff % 60);
+            e.innerHTML = `${prefix} ${days}d:${hours}h:${minutes}m:${seconds}s`;
+        }
+
+        setTimeout(tick, 1000);
     }
 
-    requestAnimationFrame(() => updateTS_descript(e, prefix));
+    tick();
 }
 
 function safeRedirect(path) {
@@ -920,21 +928,7 @@ function renderOwnerEntities(res, z, container) {
             display.textContent = "--:--:--:--";
             extrusion.appendChild(display);
 
-            // Function to update the display
-            function updateExtrusion() {
-                const ts = parseFloat(extrusion.dataset.ts) * 1000;
-                if (ts === 0) {
-                    display.innerHTML = "--:--:--:--";
-                } else {
-                    let diff = (Date.now() - ts) / 1000; // seconds
-                    const days = Math.floor(diff / 86400);
-                    const hours = Math.floor((diff % 86400) / 3600);
-                    const minutes = Math.floor((diff % 3600) / 60);
-                    const seconds = Math.floor(diff % 60);
-                    display.innerHTML = `${days}d${hours}h${minutes}m${seconds}s`;
-                }
-                requestAnimationFrame(updateExtrusion);
-            }
+            updateTS(extrusion);
 
             const channels = Object.values(e.aesthetics?.bar);
             const CellBar = document.createElement("div");
@@ -950,8 +944,6 @@ function renderOwnerEntities(res, z, container) {
             })
 
             extrusion.append(CellBar);
-
-            requestAnimationFrame(updateExtrusion);
 
             center.append(uuid, owner, extrusion);
             inner.append(top, center, bottom);

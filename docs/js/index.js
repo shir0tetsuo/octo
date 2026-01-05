@@ -23,18 +23,22 @@ function updateTS_descript(e, prefix) {
     const rawNum = Number(raw);
     const ts = Number.isFinite(rawNum) ? rawNum * 1000 : 0;
 
-    if (ts === 0) {
-        e.innerHTML = "--:--:--:--";
-    } else {
-        let diff = (Date.now() - ts) / 1000;
-        const days = Math.floor(diff / 86400);
-        const hours = Math.floor((diff % 86400) / 3600);
-        const minutes = Math.floor((diff % 3600) / 60);
-        const seconds = Math.floor(diff % 60);
-        e.innerHTML = `${prefix} ${days}d:${hours}h:${minutes}m:${seconds}s`;
+    function tick() {
+        if (ts === 0) {
+            e.innerHTML = "--:--:--:--";
+        } else {
+            let diff = (Date.now() - ts) / 1000;
+            const days = Math.floor(diff / 86400);
+            const hours = Math.floor((diff % 86400) / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            const seconds = Math.floor(diff % 60);
+            e.innerHTML = `${prefix} ${days}d:${hours}h:${minutes}m:${seconds}s`;
+        }
+
+        setTimeout(tick, 1000);
     }
 
-    requestAnimationFrame(() => updateTS_descript(e, prefix));
+    tick();
 }
 
 /**
