@@ -747,7 +747,7 @@ async def mint_entity(
     Ownership is set to the minting user, and further editing is disabled.
     """
     client_host = request.client.host
-    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=10, WINDOW=60):
+    if not ratelimits.within_ip_rate_limit(client_ip=client_host, RATE=15, WINDOW=60):
         return ServerOkayResponse(
             message='ERROR',
             db_health={"message": "Rate Limit Exceeded"}
