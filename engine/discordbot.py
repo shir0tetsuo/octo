@@ -120,7 +120,7 @@ async def on_ready():
     except Exception:
         log.exception("Failed to sync application commands")
 
-# ---------- Run ----------
+# ---------- Asyncio Run ----------
 
 async def run_discordbot(TOKEN):
     await bot.start(TOKEN)

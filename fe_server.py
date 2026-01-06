@@ -14,6 +14,7 @@ from engine import (
 import sqlite3
 import httpx
 import asyncio
+import signal
 import os, json, enum, inspect, subprocess, uuid, threading, time, base64
 
 DB_KEY = str(os.getenv('DB_X_API_KEY', ''))
@@ -969,8 +970,6 @@ async def provide_single_render(
         message="ERROR",
         db_health={"message": "Unexpected error occurred."}
     )
-    
-    
 
 @server.get("/api/health", response_model=ServerOkayResponse)
 async def system_health_check():
@@ -999,31 +998,73 @@ async def system_health_check():
             db_health={"message": "Database server unreachable"}
         )
     
-async def run_fe_server():
-    # Use loop="asyncio" to prevent uvloop conflicts with generic thread pools if needed
+
+# (Startup & Closure)
+
+async def run_server_safe(server: uvicorn.Server):
+    try:
+        await server.serve()
+    except asyncio.CancelledError:
+        # This is expected on shutdown
+        pass
+
+async def run_discord_safe(bot_coroutine):
+    try:
+        await bot_coroutine
+    except asyncio.CancelledError:
+        # Also expected on shutdown
+        pass
+
+# ---------------- Shutdown helper ----------------
+async def shutdown(fe_server: uvicorn.Server, bot):
+    print("Shutting down servers...")
+    fe_server.should_exit = True
+    await bot.close()
+
+
+# ---------------- Main entrypoint ----------------
+async def main():
+    DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN", None)
+
+    # Create Uvicorn server once
     config = uvicorn.Config(
         server,
         host="0.0.0.0",
         port=9300,
         loop="asyncio",
         lifespan="on",
-        log_level="info"
+        log_level="info",
     )
     fe_server = uvicorn.Server(config)
-    await fe_server.serve()
 
+    # Use an event to signal shutdown
+    loop = asyncio.get_running_loop()
+    stop_event = asyncio.Event()
 
-async def main():
-    DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN", None)
+    # Handle Ctrl-C / SIGTERM
+    def _signal_handler():
+        stop_event.set()
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, _signal_handler)
+
+    # Create tasks
+    tasks = [asyncio.create_task(run_server_safe(fe_server.serve()))]
+
     if DISCORD_TOKEN:
-        await asyncio.gather(
-            run_fe_server(),
-            discordbot.run_discordbot(DISCORD_TOKEN)
-        )
-    else:
-        await asyncio.gather(
-            run_fe_server()
-        )
+        tasks.append(asyncio.create_task(run_discord_safe(discordbot.run_discordbot(DISCORD_TOKEN))))
 
+    # Wait for Ctrl-C
+    await stop_event.wait()
+    print("Signal received, shutting down...")
+
+    # Cancel tasks
+    for t in tasks:
+        t.cancel()
+
+    # Graceful shutdown
+    await shutdown(fe_server, discordbot.bot)
+
+# ---------------- Run the event loop ----------------
 if __name__ == "__main__":
     asyncio.run(main())
