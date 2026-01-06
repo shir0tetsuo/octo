@@ -72,7 +72,8 @@ async def create_api_key(
         await dm.send(
             f"🔑 **Your X-API-Key**\n\n"
             f"```\n{api_key}\n```\n"
-            f"**Expires:** <t:{expires_unix}:F> (<t:{expires_unix}:R>)"
+            f"**Expires:** <t:{expires_unix}:F> (<t:{expires_unix}:R>)\n"
+            f"[Login to Online Cartographer Tool/Observatory](https://shir0tetsuo.github.io/octo/login.html)"
         )
 
         await interaction.followup.send(
