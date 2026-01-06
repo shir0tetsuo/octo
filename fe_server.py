@@ -476,7 +476,7 @@ async def entity_edit(
 
             target_iter_entity = sorted_normals[_iter]
 
-            if target_iter_entity.ownership != user_context.ID:
+            if target_iter_entity['ownership'] != user_context.ID:
                 return ServerOkayResponse(
                     message="ERROR",
                     db_health={"message": f"Ownership of iter #{_iter} does not match user context ID."}
@@ -489,7 +489,7 @@ async def entity_edit(
 
             # Remove UI flag
             target_iter_entity.pop('exists', None)
-            target_iter_entity.pop('positionZ', None)
+            #target_iter_entity.pop('positionZ', None)
 
             set_response = await client.post(
                 DB_SERVER + f"/set/{_zone}",
@@ -500,6 +500,7 @@ async def entity_edit(
 
             Tee.log(f'[/api/edit] Response status: {set_response.status_code}')
             if set_response.status_code != status.HTTP_200_OK:
+                Tee.log('! Diagnostic: ' + set_response.text)
                 return ServerOkayResponse(
                     message="ERROR",
                     db_health={"message": f"Database Error: {set_response.status_code}"}

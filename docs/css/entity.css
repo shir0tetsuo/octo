@@ -284,3 +284,12 @@ input::placeholder {
     grid-template-columns: repeat(2, 1fr);
     width: 100%;
 }
+
+form .edit-submit-button {
+    width: 100%;
+    margin-top: 15px;
+    padding: 8px 16px;
+    cursor: pointer;
+    background-color: #55555548;
+    color: #fff;
+}

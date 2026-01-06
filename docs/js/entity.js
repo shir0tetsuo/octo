@@ -265,10 +265,6 @@ function AestheticRequest(url, z) {
  * This is used for the ownership section.
  * Zone is added to the URL, not the query.
  * 
- * @param {string} url 
- * @param {string} ownership_id 
- * @param {number} after_index 
- * @returns {Promise} jQuery AJAX promise
  */
 function QueryOwnershipData(url, ownership_id, z, after_index=null) {
 
@@ -284,6 +280,20 @@ function QueryOwnershipData(url, ownership_id, z, after_index=null) {
         timeout: 2000,
         contentType: "application/json",
         dataType: "json",
+        data: JSON.stringify(payload)
+    })
+}
+
+function EditRequest(url, name, description, g, c, apikey = null) {
+    let payload = { 'name': name, 'description': description, 'g': g, 'c': c, 'x_pos': entity[currentIter].positionX, 'y_pos': entity[currentIter].positionY, 'zone': entity[currentIter].positionZ, 'iter': currentIter };
+    console.log('== EDIT REQUEST ==', payload)
+    return $.ajax({
+        type: "POST",
+        url: url,
+        timeout: 1600,
+        contentType: "application/json",
+        dataType: "json",
+        headers: apikey ? { "X-API-Key": apikey } : {},
         data: JSON.stringify(payload)
     })
 }
@@ -378,15 +388,9 @@ function underline_tool_nav(nav_name) {
     const navs = ['nav_tools_rm', 'nav_tools_edit', 'nav_tools_history', 'nav_tools_id'];
     const c = document.getElementById('card_main');
     if (c.style.display === 'none') {
-        // Back side is showing - highlight the active tool
-        for (const n in navs) {
-            if (navs[n] === nav_name) {
-                d = document.getElementById(nav_name);
-                d.className = 'tools_selected'
-            } else {
-                d = document.getElementById(navs[n])
-                d.className = ''
-            }
+        for (const id of navs) {
+            const d = document.getElementById(id);
+            d.className = (id === nav_name) ? 'tools_selected' : '';
         }
     } else {
         // Front side is showing - clear all highlights
@@ -455,7 +459,21 @@ function getIndexFromGlyph(glyph) {
     return dbAestheticsObject.glyphs.findIndex(g => g === glyph);
 }
 
-function EditorSubmit(container) {
+function HandleEditorResponse(res) {
+    console.log(res)
+    if (res?.entity) {
+        _toggle(false, 'loading')
+        launch_toast('Server accepted edit request.')
+        entity[currentIter] = res.entity;
+        renderCurrentCard()
+    } else {
+        _toggle(false, 'loading')
+        console.error(res?.db_health?.message || "Unexpected error.")
+        launch_error_toast(res?.db_health?.message || "Unexpected error occurred.");
+    }
+}
+
+function EditorSubmit(container, _name, _desc) {
     const glyphCells = container.querySelectorAll(".glyph-editor");
     const glyphData = Array.from(glyphCells).map((cell, idx) => {
         //const glyphDisplay = cell.querySelector(".glyph-slot");
@@ -471,6 +489,8 @@ function EditorSubmit(container) {
         };
     });
 
+    const apikey = getApiKeyFromCookie()
+
     // Format by index for sanitized submission to server
     const _g = [];
     const _c = [];
@@ -479,14 +499,25 @@ function EditorSubmit(container) {
         _c.push(gd.c);
     });
 
-    const payload = {
-        name: container.dataset._n,
-        description: container.dataset._d,
-        g: _g,
-        c: _c
-    };
+    _toggle(true, 'loading');
 
-    console.log(payload);
+    EditRequest('https://octo.shadowsword.ca/api/edit', _name, _desc, _g, _c, apikey)
+    .done(function (res) {
+        HandleEditorResponse(res)
+    })
+    .fail(function () {
+        EditRequest('http://localhost:9300/api/edit', _name, _desc, _g, _c, apikey)
+        .done(function (res) {
+            HandleEditorResponse(res)
+        })
+        .fail(function (dataOrJqXHR, textStatus, jqXHRorError) {
+            const jqXHR = dataOrJqXHR.status ? dataOrJqXHR : jqXHRorError;
+            let status = jqXHR.status;
+            launch_error_toast(`${textStatus}: ${status}`);
+            _toggle(false, 'loading')
+        })
+    })
+
 }
 
 // Specifically for the editor
@@ -638,19 +669,17 @@ function renderEditor() {
     const submitBtn = document.createElement("button");
     submitBtn.type = "button"; // prevent actual form submission
     submitBtn.textContent = "Submit";
-    submitBtn.style.marginTop = "15px";
-    submitBtn.style.padding = "8px 16px";
-    submitBtn.style.cursor = "pointer";
+    submitBtn.className = 'edit-submit-button';
 
-    styles_container.dataset._n = f_name.value;
-    styles_container.dataset._d = f_desc.value;
+    //styles_container.dataset._n = f_name.value;
+    //styles_container.dataset._d = f_desc.value;
 
     submitBtn.addEventListener("click", () => {
-        EditorSubmit(styles_container);
+        EditorSubmit(styles_container, f_name.value, f_desc.value);
     });
 
     f.addEventListener("submit", (e) => {
-        e.preventDefault(); // stop page reload
+        e.preventDefault(); // stop page reload on enter
     });
 
     f.appendChild(submitBtn);
@@ -827,21 +856,6 @@ function applyDataStateChannel(pad, bar) {
     channels.forEach((c, i) => {
         pad.style.setProperty(`--dc${i}`, c);
     });
-}
-
-function applyChannelAnimation(pad, bar) {
-    if (!bar || typeof bar !== "object") return;
-
-    const channels = Object.values(bar); // channel_0 → channel_7
-
-    channels.forEach((c, i) => {
-        pad.style.setProperty(`--c${i}`, c);
-    });
-
-    // First 4 drive the background animation
-    for (let i = 0; i < 4; i++) {
-        pad.style.setProperty(`--ch-${i}`, channels[i % channels.length]);
-    }
 }
 
 function renderOwnerEntities(res, z, container) {
@@ -1021,7 +1035,16 @@ function showCardOwner() {
     hash_data.style.setProperty('width', '80%');
     hash_data.style.setProperty('word-break', 'break-all');
     hash_data.id = "hash-data";
-    hash_data.innerHTML = '<i class="ri-shield-check-line"></i> <a href="#" onclick="getCurrentCardHash()">Get Hash</a>';
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = "Get Hash";
+    link.addEventListener("click", e => {
+        e.preventDefault();
+        getCurrentCardHash();
+    });
+
+    hash_data.innerHTML = '<i class="ri-shield-check-line"></i> ';
+    hash_data.appendChild(link);
 
     info_data.innerHTML = `${m} x${X}, y${Y}, z${z}, #${i}/${l}<br>${ro}<br><i class="ri-focus-2-fill"></i> ${u}<br><i class="ri-time-line"></i> ${date.toString()}<br>`;
     info_data.append(hash_data);
@@ -1077,7 +1100,7 @@ function showMintControl(event) {
         }
     } else {
         // Fallback for inline onclick (shouldn't happen with new approach)
-        m = document.getElementById('mint_control');
+        const m = document.getElementById('mint_control');
         if (m) {
             m.style.display = (m.style.display === 'block') ? 'none' : 'block';
         }
@@ -1396,7 +1419,8 @@ function buildCard(entity_data, key) {
     const ownership = entity_data.ownership ?? '00000000';
     tools_user.id = 'nav_tools_id'
     tools_user.style.setProperty('font-family', 'monospace');
-    tools_user.innerHTML = `<span onclick="showCardOwner()"><i class="ri-user-fill"></i> ${ownership.split('-')[0]}</span>`;
+    const user_i = (entity_data.ownership === user_context.ID) ? '<i class="ri-user-fill"></i>' : '<i class="ri-user-line"></i>'
+    tools_user.innerHTML = `<span onclick="showCardOwner()">${user_i} ${ownership.split('-')[0]}</span>`;
 
     // card setup
     // Card front (main entity view)
