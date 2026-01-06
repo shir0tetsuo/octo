@@ -1,5 +1,6 @@
 import engine.security
 import engine.ratelimits
+import os
 import logging
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -120,7 +121,11 @@ async def on_ready():
     except Exception:
         log.exception("Failed to sync application commands")
 
-# ---------- Asyncio Run ----------
 
-async def run_discordbot(TOKEN):
-    await bot.start(TOKEN)
+# ---------- Run ----------
+if __name__ == "__main__":
+    TOKEN = os.environ.get("DISCORD_TOKEN", "<PUT_YOUR_TOKEN_HERE>")
+    if TOKEN == "<PUT_YOUR_TOKEN_HERE>":
+        log.error("You must set DISCORD_TOKEN environment variable or update the script.")
+    else:
+        bot.run(TOKEN)
