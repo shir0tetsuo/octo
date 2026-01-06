@@ -959,6 +959,23 @@ function renderOwnerEntities(res, z, container) {
     }
 }
 
+function getCurrentCardHash() {
+    _toggle(true, 'loading')
+    const dh = document.getElementById('hash-data');
+    (async () => {
+        try {
+            const result = await proofOfWork(entity[currentIter], 2, 100_000);
+            dh.innerHTML = '<i class="ri-shield-check-fill"></i> ' + `(${result.nonce}) ${result.hash}`;
+            _toggle(false, 'loading')
+        } catch (err) {
+            dh.innerHTML = '<i class="ri-shield-line"></i> Something went wrong.'
+            console.error(err.message);
+            launch_error_toast(err.message);
+            _toggle(false, 'loading')
+        }
+    })();
+}
+
 /**
  * Displays ownership information and user permissions.
  * Shows who owns the entity and what actions are available.
@@ -1000,7 +1017,18 @@ function showCardOwner() {
     let ts = entity[currentIter].timestamp;
     const date = new Date(ts * 1000);
     const info_data = document.createElement("div");
-    info_data.innerHTML = `${m} x${X}, y${Y}, z${z}, #${i}/${l}<br>${ro}<br><i class="ri-focus-2-fill"></i> ${u}<br><i class="ri-time-line"></i> ${date.toString()}<br><br>`;
+    const hash_data = document.createElement("span");
+    hash_data.style.setProperty('width', '80%');
+    hash_data.style.setProperty('word-break', 'break-all');
+    hash_data.id = "hash-data";
+    hash_data.innerHTML = '<i class="ri-shield-check-line"></i> <a href="#" onclick="getCurrentCardHash()">Get Hash</a>';
+
+    info_data.innerHTML = `${m} x${X}, y${Y}, z${z}, #${i}/${l}<br>${ro}<br><i class="ri-focus-2-fill"></i> ${u}<br><i class="ri-time-line"></i> ${date.toString()}<br>`;
+    info_data.append(hash_data);
+
+    const spacer = document.createElement("div");
+    spacer.style.setProperty('padding-top', '20px');
+    info_data.append(spacer);
 
     if (entity_stack_owner) {
         _toggle(true, 'loading')
