@@ -46,3 +46,19 @@ def within_edit_rate_limit(client_ip, RATE = 5, WINDOW = 25):
     
     q.append(now)
     return True
+
+
+# For Discord tokens
+discord_buckets = defaultdict(deque)
+def within_discord_rate_limit(user_id, RATE = 3, WINDOW = 120):
+    now = time.time()
+    q = discord_buckets[user_id]
+
+    while q and q[0] <= now - WINDOW:
+        q.popleft()
+
+    if len(q) >= RATE:
+        return False
+    
+    q.append(now)
+    return True

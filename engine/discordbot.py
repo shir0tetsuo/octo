@@ -1,4 +1,5 @@
 import engine.security
+import engine.ratelimits
 import logging
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -29,6 +30,13 @@ async def create_api_key(
     await interaction.response.defer(ephemeral=True)
 
     discord_id = interaction.user.id
+
+    if (not engine.ratelimits.within_discord_rate_limit(discord_id)):
+        dm = await interaction.user.create_dm()
+        await dm.send(
+            f"🔑 **Rate-limit exceeded.**\n\n"
+        )
+        return
 
     tokendata = [
         f"user:{discord_id}",
