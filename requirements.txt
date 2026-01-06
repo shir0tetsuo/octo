@@ -6,3 +6,4 @@ pydantic==2.12.5
 fastapi==0.124.4
 ipython==9.8.0
 httpx==0.28.1
+discord==2.3.2

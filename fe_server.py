@@ -7,7 +7,8 @@ from __future__ import annotations
 from engine import (
     verbose, versioning, mapmath,
     jsonsafe, security, validation, 
-    ratelimits, databases, tarot
+    ratelimits, databases, tarot,
+    discordbot
 )
 
 import sqlite3
@@ -36,8 +37,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi                 import FastAPI, Header, HTTPException, status, BackgroundTasks, Depends, Request, Cookie
 from fastapi.security        import APIKeyHeader
 from fastapi.responses       import PlainTextResponse # might be removed later
-from uvicorn                 import run as uvicorn_run
 from pydantic                import BaseModel, Field, field_validator
+import uvicorn
 
 # Cryptography
 from cryptography                                import x509
@@ -997,8 +998,32 @@ async def system_health_check():
             message="ERROR",
             db_health={"message": "Database server unreachable"}
         )
+    
+async def run_fe_server():
+    # Use loop="asyncio" to prevent uvloop conflicts with generic thread pools if needed
+    config = uvicorn.Config(
+        server,
+        host="0.0.0.0",
+        port=9300,
+        loop="asyncio",
+        lifespan="on",
+        log_level="info"
+    )
+    fe_server = uvicorn.Server(config)
+    await fe_server.serve()
+
+
+async def main():
+    DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN", None)
+    if DISCORD_TOKEN:
+        await asyncio.gather(
+            run_fe_server(),
+            discordbot.run_discordbot(DISCORD_TOKEN)
+        )
+    else:
+        await asyncio.gather(
+            run_fe_server()
+        )
 
 if __name__ == "__main__":
-    import uvicorn
-    # Use loop="asyncio" to prevent uvloop conflicts with generic thread pools if needed
-    uvicorn.run(server, host="0.0.0.0", port=9300, workers=1, loop="asyncio")
+    asyncio.run(main())

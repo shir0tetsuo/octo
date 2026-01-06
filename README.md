@@ -73,6 +73,7 @@ For simplicity, both are included here, useful for testing:
 #!/usr/bin/env bash
 export DB_X_API_KEY="THE_API_KEY_GENERATED_FROM_NEW_API_KEY_JUPYTER..."
 export DB_SERVER="http://localhost:9401"
+export DISCORD_TOKEN="<PUT_DISCORD_BOT_TOKEN_HERE>"
 source ./venv/bin/activate
 python3 db_server.py &
 python3 fe_server.py
