@@ -1,4 +1,4 @@
-let number_of_zones = 8
+let number_of_zones = 16;
 
 // Cell Building
 

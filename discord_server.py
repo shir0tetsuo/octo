@@ -20,7 +20,7 @@ TREE = bot.tree
 ROOT_DIR = Path(__file__).parent
 PAGE_SIZE = 25  # Discord select menu max options per select
 
-KEY_FILE = Path("key.json")
+KEY_FILE = Path("engine/key.json")
 
 @TREE.command(
     name="create_api_key",

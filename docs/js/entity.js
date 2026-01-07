@@ -9,7 +9,7 @@
 // ============================================================================
 
 // ──── Global State Variables ────────────────────────────────────────────────
-let number_of_zones = 8;
+let number_of_zones = 16;
 
 const container = document.getElementById('container');
 
