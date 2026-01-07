@@ -694,6 +694,12 @@ function renderEditor() {
     const description_layer = document.createElement("div");
     description_layer.appendChild(f);
 
+    if (isLevel >= 3 && e.ownership != user_context.ID) {
+        const permission_warning = document.createElement('span');
+        permission_warning.innerHTML = '<b style="color: #f00;"><i class="ri-spam-line"></i> Warning: Privileged Edit Mode</b>';
+        content.appendChild(permission_warning);
+    }
+
     content.appendChild(description_layer);
     ds.appendChild(content);
 }
@@ -735,6 +741,27 @@ function showCardEdit() {
         const char_quote = '<i class="ri-prohibited-line"></i> ';
         const char_quote_long = ' '+char_quote;
         var description = "This iteration is minted, editing not allowed.";
+        while (description.replaceAll(char_quote_long, '').length < 1500) {
+            description = description + char_quote_long + description;
+        }
+        description = char_quote + description;
+        const ds = document.getElementById('datasurface');
+        const specular_layer = document.createElement("div");
+        specular_layer.className = 'card specular';
+        specular_layer.style.setProperty('--spec-channel', '#5e5e5eff');
+        const content = document.createElement("div");
+        content.className = "content";
+        content.style.setProperty("word-break", "break-all");
+        const description_layer = document.createElement("div");
+        description_layer.innerHTML = description;
+
+        content.appendChild(description_layer);
+        specular_layer.appendChild(content);
+        ds.appendChild(specular_layer);
+    } else if (currentIter == 0) {
+        const char_quote = '<i class="ri-prohibited-line"></i> ';
+        const char_quote_long = ' '+char_quote;
+        var description = "Cannot edit #0 Genesis.";
         while (description.replaceAll(char_quote_long, '').length < 1500) {
             description = description + char_quote_long + description;
         }
