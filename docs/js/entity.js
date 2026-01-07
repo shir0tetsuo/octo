@@ -694,7 +694,7 @@ function renderEditor() {
     const description_layer = document.createElement("div");
     description_layer.appendChild(f);
 
-    if (isLevel >= 3 && e.ownership != user_context.ID) {
+    if (isLevel >= 3 && (e.ownership != user_context.ID || e.minted)) {
         const permission_warning = document.createElement('span');
         permission_warning.innerHTML = '<b style="color: #f00;"><i class="ri-spam-line"></i> Warning: Privileged Edit Mode</b>';
         content.appendChild(permission_warning);

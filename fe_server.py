@@ -476,7 +476,7 @@ async def entity_edit(
 
             target_iter_entity = sorted_normals[_iter]
 
-            if target_iter_entity['ownership'] != user_context.ID:
+            if (target_iter_entity['ownership'] != user_context.ID) and ('isLevel3' not in user_context.data):
                 return ServerOkayResponse(
                     message="ERROR",
                     db_health={"message": f"Ownership of iter #{_iter} does not match user context ID."}
