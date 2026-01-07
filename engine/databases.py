@@ -90,9 +90,9 @@ ZONE_COLORS = { # Define zone colors here, zone length expands to len; Don't for
         '#faa307',        '#ffba08'
     ],
     11 : [
-        '#0b090a',        '#161a1d',        '#660708',         '#a4161a',
-        '#ba181b',        '#e5383b',        '#b1a7a6',         '#d3d3d3',
-        '#f5f3f4',        '#ffffff'
+        '#d9ed92',        '#b5e48c',        '#99d98c',         '#76c893', 
+        '#52b69a',        '#34a0a4',        '#168aad',         '#1a759f', 
+        '#b185db',        '#a06cd5',        '#9163cb',         '#815ac0',
     ],
     12 : [
         '#641220',        '#6e1423',        '#85182a',         '#a11d33',
