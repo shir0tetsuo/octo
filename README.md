@@ -14,7 +14,7 @@ Tired of fumbling with CSS for documentation? **Github Pages.**
 
 Too much read/write overhead of the same HTML/CSS/JS files? **Github Pages!**
 
-# Forward
+# Foreword
 
 This project is transparent. You may always check for database statistics in the console in the status page,
 or identify which version of the project is being used for the frontend and backend servers. All of our
