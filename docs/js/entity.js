@@ -1073,7 +1073,7 @@ function showCardOwner() {
     hash_data.innerHTML = '<i class="ri-shield-check-line"></i> ';
     hash_data.appendChild(link);
 
-    info_data.innerHTML = `${m} x${X}, y${Y}, z${z}, #${i}/${l}<br>${ro}<br><i class="ri-focus-2-fill"></i> ${u}<br><i class="ri-time-line"></i> ${date.toString()}<br>`;
+    info_data.innerHTML = `${m} x${X}, y${Y}, z${z}, #${i}/${l}<br>${ro}<br><i class="ri-focus-2-fill"></i> ${u}<br><i class="ri-time-line"></i> ${date.toString()}<br><i class="ri-information-2-fill"></i> ${entity[currentIter].name}<br><i class="ri-profile-line"></i> ${entity[currentIter].description}<br>`;
     info_data.append(hash_data);
 
     const spacer = document.createElement("div");
