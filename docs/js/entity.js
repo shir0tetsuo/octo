@@ -1053,6 +1053,8 @@ function showCardOwner() {
     let m  = (entity[currentIter].minted) ? '<i class="ri-copper-coin-fill"></i>' : '<i class="ri-copper-coin-line"></i>';
     let X  = entity[currentIter].positionX;
     let Y  = entity[currentIter].positionY;
+    let XA = collapseValue(X);
+    let YA = collapseValue(Y);
     let u  = entity[currentIter].uuid;
     let s  = entity[currentIter].state;
     let ts = entity[currentIter].timestamp;
@@ -1073,7 +1075,7 @@ function showCardOwner() {
     hash_data.innerHTML = '<i class="ri-shield-check-line"></i> ';
     hash_data.appendChild(link);
 
-    info_data.innerHTML = `${m} x${X}, y${Y}, z${z}, #${i}/${l}<br>${ro}<br><i class="ri-focus-2-fill"></i> ${u}<br><i class="ri-time-line"></i> ${date.toString()}<br><i class="ri-information-2-fill"></i> ${entity[currentIter].name}<br><i class="ri-profile-line"></i> ${entity[currentIter].description}<br>`;
+    info_data.innerHTML = `<span style="word-break: break-all;">${m} x${X}, y${Y}, z${z}, #${i}/${l} <i class="ri-compass-fill"></i> <a href="map.html?x=${XA}&y=${YA}&z=${z}">X${XA},Y${YA}</a></span><br>${ro}<br><i class="ri-focus-2-fill"></i> ${u}<br><i class="ri-time-line"></i> ${date.toString()}<br><i class="ri-information-2-fill"></i> ${entity[currentIter].name}<br><i class="ri-profile-line"></i> ${entity[currentIter].description}<br>`;
     info_data.append(hash_data);
 
     const spacer = document.createElement("div");
